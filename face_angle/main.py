@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from face_angle.Rolling import (
+from Rolling import (
     compute_frame_thetas,
     compute_consecutive_diffs,
     compute_base_diffs,
@@ -22,6 +22,9 @@ from club import (
     compute_cp_cs_cq_cn_diffs,
     compute_ay_bn_diffs,
 )
+from angle import (
+    compute_segmented_signed_ABC
+)
 
 def main():
     # ─── 1) 비교할 플레이어 엑셀 파일 3개 지정 ───
@@ -35,7 +38,6 @@ def main():
     metrics = {
         "Wrist Rolling Angle":      compute_frame_thetas,
         "3D Cocking Angle": cocking3d,
-        "2D Cocking Angle ": cocking2d,
         "Hinge Angle":    compute_arcsin_angles,
         "Cupping/Bowing Angle":     compute_cupping_bowing_angles,
         "clubface":           compute_tilt_angles_excel,
@@ -49,10 +51,10 @@ def main():
     rolling_vals = results["Wrist Rolling Angle"]
     roll_consec  = {name: compute_consecutive_diffs(vals) for name, vals in rolling_vals.items()}
     roll_base    = {name: compute_base_diffs(vals)     for name, vals in rolling_vals.items()}
-    cock2d_vals  = results["2D Cocking Angle "]
+    
 
     # ─── 4) 엑셀로 저장 (단일 시트, 세로 블록) ───
-    out_xlsx = Path("results_comparison.xlsx")
+    out_xlsx = Path("face_angle.xlsx")
     with pd.ExcelWriter(out_xlsx, engine="xlsxwriter") as writer:
         workbook  = writer.book
         worksheet = workbook.add_worksheet("Metrics")
@@ -109,7 +111,7 @@ def main():
         row += 1
 
         # 4.6) AY–BN diffs
-        worksheet.write(row, 0, "7.1.2", title_fmt)
+        worksheet.write(row, 0, "Forearm Supination 1", title_fmt)
         row += 1
         for name, fp in players.items():
             diffs = compute_ay_bn_diffs(fp)
@@ -118,11 +120,30 @@ def main():
                 worksheet.write(row, c, v, val_fmt)
             row += 1
 
+        ### 4.1.2.2
+        worksheet.write(row, 0, "Forearm Supination 2", title_fmt)
+        row += 1
+        for name, fp in players.items():
+            vals = compute_segmented_signed_ABC(fp)
+            worksheet.write(row, 0, name, name_fmt)
+            for c, v in enumerate(vals, start=1):
+                worksheet.write(row, c, v, val_fmt)
+            row += 1
+
     print(f"▶️ 결과를 ‘Metrics’ 시트에 저장했습니다: {out_xlsx.resolve()}")
 
     # ─── 5) (옵션) 전체 비교 플롯 ───
-    fig, axes = plt.subplots(len(metrics), 1, figsize=(8, 4*len(metrics)))
-    for ax, (metric_name, player_dict) in zip(axes, results.items()):
+    import math
+    n_metrics = len(metrics)
+    ncols = 3
+    nrows = math.ceil(n_metrics / ncols)
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
+
+    # 2D 배열을 1D로 펼쳐서 순서대로 매핑
+    axes_flat = axes.flatten()
+
+    for ax, (metric_name, player_dict) in zip(axes_flat, results.items()):
         for name, vals in player_dict.items():
             ax.plot(range(1, len(vals)+1), vals, marker='o', label=name)
         ax.set_title(metric_name)
@@ -130,6 +151,10 @@ def main():
         ax.set_ylabel('θ (°)')
         ax.grid(True)
         ax.legend()
+
+    # 사용하지 않은 축은 꺼 버리기
+    for ax in axes_flat[n_metrics:]:
+        ax.axis('off')
 
     plt.tight_layout()
     img_path = Path("all_metrics.png")
