@@ -1,87 +1,114 @@
+# hinging_table.py
+
+import math
 import numpy as np
 import pandas as pd
-import math
-import matplotlib.pyplot as plt
 from pathlib import Path
 
 def col_letters_to_index(letters: str) -> int:
-    """엑셀 컬럼 문자(A, B, ..., Z, AA, AB, ...)를 0-based 인덱스로 변환"""
     idx = 0
     for ch in letters:
-        idx = idx * 26 + (ord(ch.upper()) - ord('A') + 1)
+        idx = idx*26 + (ord(ch.upper()) - ord('A') + 1)
     return idx - 1
 
 def load_sheet(xlsx_path: Path) -> np.ndarray:
-    """헤더 없이 엑셀을 읽어 numpy array 반환"""
     return pd.read_excel(xlsx_path, header=None).values
 
 def g(arr: np.ndarray, code: str) -> float:
-    """
-    코드 예: 'AX1' → arr[row=0, col=col_letters_to_index('AX')]
-    row = frame-1, col = 엑셀 열
-    """
     letters = ''.join(filter(str.isalpha, code))
     num     = int(''.join(filter(str.isdigit, code)))
     return float(arr[num-1, col_letters_to_index(letters)])
 
-def compute_arcsin_angles(xlsx_path: Path):
+def compute_hinging(AX, AY, AZ, AR, AS, AT, CN, CO, CP) -> float:
     """
-    θ = -arcsin(  (AX-AR)*(CO-AY) - (AY-AS)*(CN-AX)
-                --------------------------------------
-                sqrt((AX-AR)^2+(AY-AS)^2+(AZ-AT)^2)
-                * sqrt((CN-AX)^2+(CO-AY)^2+(CP-AZ)^2)
-                )
-    를 1~10 프레임에 대해 계산해 리스트로 반환
+    한 프레임에 대해 음의 arcsin XY-투영 힌징 각도를 degree 로 반환합니다.
+
+    θ = -arcsin(
+          (AX-AR)*(CO-AY) - (AY-AS)*(CN-AX)
+        -------------------------------------
+        sqrt((AX-AR)^2 + (AY-AS)^2 + (AZ-AT)^2)
+        × sqrt((CN-AX)^2 + (CO-AY)^2 + (CP-AZ)^2)
+    )
     """
-    arr = load_sheet(xlsx_path)
-    angles = []
-    for n in range(1, 11):
-        # 왼어깨(A1) → (ARn, ASn, ATn), 왼손목(A1) → (AXn, AYn, AZn)
-        AR, AS, AT = g(arr, f'AR{n}'), g(arr, f'AS{n}'), g(arr, f'AT{n}')
-        AX, AY, AZ = g(arr, f'AX{n}'), g(arr, f'AY{n}'), g(arr, f'AZ{n}')
-        # 클럽헤드 → (CNn, COn, CPn)
-        CN, CO, CP = g(arr, f'CN{n}'), g(arr, f'CO{n}'), g(arr, f'CP{n}')
+    # 1) 분자: XY 평면에서의 외적 z 성분
+    num = (AX - AR) * (CO - AY) - (AY - AS) * (CN - AX)
 
-        # 분자
-        num = (AX-AR)*(CO-AY) - (AY-AS)*(CN-AX)
-        # 분모
-        norm1 = math.sqrt((AX-AR)**2 + (AY-AS)**2 + (AZ-AT)**2)
-        norm2 = math.sqrt((CN-AX)**2 + (CO-AY)**2 + (CP-AZ)**2)
+    # 2) 분모: 두 3D 벡터 길이의 곱
+    len_aw = math.sqrt((AX-AR)**2 + (AY-AS)**2 + (AZ-AT)**2)
+    len_wc = math.sqrt((CN-AX)**2 + (CO-AY)**2 + (CP-AZ)**2)
+    denom = len_aw * len_wc if len_aw and len_wc else 0.0
 
-        # 도메인 안전성 확보
-        v = num / (norm1 * norm2)
-        v = max(-1.0, min(1.0, v))
+    # 3) 비율 및 클램핑
+    ratio = num/denom if denom != 0.0 else 0.0
+    ratio = max(-1.0, min(1.0, ratio))
 
-        # θ 계산 (–arcsin → 도 단위)
-        theta = -math.degrees(math.asin(v))
-        angles.append(theta)
-    return angles
+    # 4) θ 계산 (–arcsin → 라디안, 도로 변환)
+    theta = -math.degrees(math.asin(ratio))
+    return round(theta, 2)
 
-if __name__ == '__main__':
-    # 실제 파일 경로로 수정하세요
-    FILE1 = Path("/Users/park_sh/Desktop/sim_pro/test/sample_first.xlsx")
-    FILE2 = Path("/Users/park_sh/Desktop/sim_pro/driver/Rory McIlroy/first_data_transition.xlsx")
+def signed_maintenance_score(top: float, dh: float) -> float:
+    """TOP→DH 사이 signed 유지지수 (percent) 계산"""
+    delta = dh - top
+    drop_ratio = abs(delta)/abs(top) if top!=0 else 0.0
+    # 방향 일치 & 과도하게 풀리지 않았으면 +
+    if np.sign(top)==np.sign(dh) and abs(dh)<=abs(top):
+        return round((1-drop_ratio)*100,2)
+    else:
+        return round(-drop_ratio*100,2)
 
-    angles1 = compute_arcsin_angles(FILE1)
-    angles2 = compute_arcsin_angles(FILE2)
-    frames = list(range(1, 11))
+def calculate_full_hinging_table(path_rory: Path, path_hong: Path) -> pd.DataFrame:
+    """Rory/Hong 두 파일로 전체 힌징 테이블(1~10 프레임, Δ, 구간 Δ, 유지지수) 생성"""
+    # 1) 각 프레임 힌징
+    arr_r = load_sheet(path_rory)
+    arr_h = load_sheet(path_hong)
+    r_angles = []
+    h_angles = []
+    for i in range(1, 11):
+        AR, AS, AT = g(arr_r, f"AR{i}"), g(arr_r, f"AS{i}"), g(arr_r, f"AT{i}")
+        AX, AY, AZ = g(arr_r, f"AX{i}"), g(arr_r, f"AY{i}"), g(arr_r, f"AZ{i}")
+        CN, CO, CP = g(arr_r, f"CN{i}"), g(arr_r, f"CO{i}"), g(arr_r, f"CP{i}")
+        r_angles.append(compute_hinging(AX,AY,AZ,AR,AS,AT,CN,CO,CP))
 
-    # 결과를 DataFrame 으로 출력
-    df = pd.DataFrame({
-        'Frame': frames,
-        FILE1.stem: angles1,
-        FILE2.stem: angles2
-    })
-    print(df.to_markdown(index=False))
+        AR, AS, AT = g(arr_h, f"AR{i}"), g(arr_h, f"AS{i}"), g(arr_h, f"AT{i}")
+        AX, AY, AZ = g(arr_h, f"AX{i}"), g(arr_h, f"AY{i}"), g(arr_h, f"AZ{i}")
+        CN, CO, CP = g(arr_h, f"CN{i}"), g(arr_h, f"CO{i}"), g(arr_h, f"CP{i}")
+        h_angles.append(compute_hinging(AX,AY,AZ,AR,AS,AT,CN,CO,CP))
 
-    # matplotlib 으로 시각화
-    plt.figure(figsize=(8,4))
-    plt.plot(frames, angles1, marker='o', label=FILE1.stem)
-    plt.plot(frames, angles2, marker='s', label=FILE2.stem)
-    plt.xlabel('Frame')
-    plt.ylabel('θ (°)')
-    plt.title('Frame-wise θ Comparison (−arcsin 공식)')
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    # 2) 프레임 간 Δ (첫은 빈칸)
+    r_delta = [""] + [round(r_angles[i]-r_angles[i-1],2) for i in range(1,10)]
+    h_delta = [""] + [round(h_angles[i]-h_angles[i-1],2) for i in range(1,10)]
+
+    # 3) 구간 Δ1-4, Δ4-6, 유지지수 (index 0=Frame1, 3=TOP, 5=DH)
+    top_idx, dh_idx = 3, 5
+    r_1_4 = round(r_angles[top_idx] - r_angles[0], 2)
+    r_4_6 = round(r_angles[dh_idx] - r_angles[top_idx], 2)
+    h_1_4 = round(h_angles[top_idx] - h_angles[0], 2)
+    h_4_6 = round(h_angles[dh_idx] - h_angles[top_idx], 2)
+
+    r_maint = signed_maintenance_score(r_angles[top_idx], r_angles[dh_idx])
+    h_maint = signed_maintenance_score(h_angles[top_idx], h_angles[dh_idx])
+
+    # 4) DataFrame 결합
+    rows = list(range(1,11)) + ["1-4","4-6","Hinging_Maintenance"]
+    data = {
+        "Rory Hinging (deg)":    r_angles + [r_1_4, r_4_6, ""],
+        "ΔRory":                  r_delta  + ["",    "",    r_maint],
+        "Hong Hinging (deg)":    h_angles + [h_1_4, h_4_6, ""],
+        "ΔHong":                  h_delta  + ["",    "",    h_maint],
+    }
+    df = pd.DataFrame(data, index=rows)
+    df.index.name = "Frame"
+    return df
+
+def main():
+    # 파일 경로 설정
+    file_rory = Path("/Users/park_sh/Desktop/sim_pro/driver/Rory McIlroy/first_data_transition.xlsx")
+    file_hong = Path("/Users/park_sh/Desktop/sim_pro/test/sample_first.xlsx")
+
+    # 힌징 테이블 생성
+    df_hinge = calculate_full_hinging_table(file_rory, file_hong)
+
+    # 결과 출력
+    print(df_hinge)
+if __name__ == "__main__":
+    main()
