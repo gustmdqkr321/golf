@@ -7,7 +7,7 @@ import importlib
 base = Path(__file__).parent / "apps"
 apps = [p.name for p in base.iterdir() if p.is_dir()]
 
-st.set_page_config(page_title="Multi‑Golf Swing 리포트", layout="wide")
+st.set_page_config(page_title="Multi-Golf Swing 리포트", layout="wide")
 st.sidebar.header("앱 선택")
 app_choice = st.sidebar.selectbox("▶ 어떤 리포트를 보시겠습니까?", apps)
 
@@ -25,18 +25,38 @@ if pro_upl and golfer_upl:
     times = [int(x) for x in times_str.split(",") if x.strip().isdigit()]
 
     st.sidebar.markdown("**⏳ 계산 중…**")
-    # 4) 동적으로 해당 앱 모듈 import 후 main() 호출
+    # 4) 해당 앱 모듈 import 후 main() 호출
     module = importlib.import_module(f"apps.{app_choice}.main")
     dfs = module.main(pro_path, golfer_path, times)
 
-    # 5) 탭으로 출력
+    # 5) 탭으로 각각 보여주고, 개별 CSV 다운로드
     tabs = st.tabs(list(dfs.keys()))
     for tab, (title, df) in zip(tabs, dfs.items()):
         with tab:
             st.subheader(f"{app_choice} – {title}")
             st.dataframe(df, use_container_width=True)
-            csv_bytes = df.to_csv(index=False).encode("utf-8-sig")
-            st.download_button("CSV 다운로드", csv_bytes, file_name=f"{app_choice}_{title}.csv")
+            csv_bytes = df.to_csv(index=True).encode("utf-8-sig")
+            st.download_button(
+                "CSV 다운로드",
+                csv_bytes,
+                file_name=f"{app_choice}_{title}.csv",
+                key=f"dl_{title}"
+            )
+
+    # 6) 전체를 하나로 합친 CSV 만들기
+    merged = []
+    for title, df in dfs.items():
+        # 제목 행 추가
+        merged.append(f"# {title}")
+        # DataFrame CSV (index 포함)
+        merged.append(df.to_csv(index=True))
+    merged_csv = "\n".join(merged).encode("utf-8-sig")
+
+    st.sidebar.download_button(
+        "📥 전체 병합 CSV 다운로드",
+        merged_csv,
+        file_name=f"{app_choice}_ALL.csv"
+    )
 
     st.success("✅ 완료!")
 

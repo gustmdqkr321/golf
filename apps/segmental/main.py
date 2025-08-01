@@ -1,89 +1,87 @@
 #!/usr/bin/env python3
-# main.py (project_root)
+# main.py (project_root/apps/pelvis_analysis/main.py)
 
-import pandas as pd
 from pathlib import Path
+import pandas as pd
 
-from knee import (
-    compute_knee_tdd_table,
-    compute_knee_rotation_table,
-)
-from pelvis import (
-    compute_pelvis_tdd_table,
-    compute_pelvis_rotation_table,
-)
-from shoulder import (
-    compute_shoulder_tdd_table,
-    compute_shoulder_rotation_table,
-)
-from arm import (
-    compute_arm_tdd_table,
-    compute_arm_rotation_table,
-)
-from club import (
-    compute_club_tdd_table,
-    compute_club_rotation_table,
-)
-from center import (
+from .knee    import compute_knee_tdd_table, compute_knee_rotation_table
+from .pelvis  import compute_pelvis_tdd_table, compute_pelvis_rotation_table
+from .shoulder import compute_shoulder_tdd_table, compute_shoulder_rotation_table
+from .arm     import compute_arm_tdd_table, compute_arm_rotation_table
+from .club    import compute_club_tdd_table, compute_club_rotation_table
+from .center  import (
     compute_pelvis_center_deviation,
     compute_knee_center_deviation,
     compute_shoulder_center_deviation,
     compute_xyz_diff_summary
 )
-def main():
-    # ─── 1) 입력 파일 경로 지정 ────────────────────────────────
-    pro_file    = Path("/Users/park_sh/Desktop/sim_pro/driver/Rory McIlroy/first_data_transition.xlsx")
-    golfer_file = Path("/Users/park_sh/Desktop/sim_pro/test/sample_first.xlsx")
 
-    # ─── 2) 테이블 계산 ────────────────────────────────
-    df_tdd_knee = compute_knee_tdd_table(pro_file, golfer_file)
-    df_rot_knee = compute_knee_rotation_table(pro_file, golfer_file)
-    df_tdd_pelvis = compute_pelvis_tdd_table(pro_file, golfer_file)
-    df_rot_pelvis = compute_pelvis_rotation_table(pro_file, golfer_file)
-    df_tdd_shoulder = compute_shoulder_tdd_table(pro_file, golfer_file)
-    df_rot_shoulder = compute_shoulder_rotation_table(pro_file, golfer_file)
-    df_tdd_arm = compute_arm_tdd_table(pro_file, golfer_file)
-    df_rot_arm = compute_arm_rotation_table(pro_file, golfer_file)
-    df_tdd_club = compute_club_tdd_table(pro_file, golfer_file)
-    df_rot_club = compute_club_rotation_table(pro_file, golfer_file)
+def main(
+    pro_file: Path,
+    golfer_file: Path,
+    times: list[int],
+    out_path: Path | None = None
+) -> dict[str, pd.DataFrame]:
+    """
+    -- pro_file:    기준(프로) 엑셀 파일 경로
+    -- golfer_file: 실제(골퍼) 엑셀 파일 경로
+    -- times:       이 앱에선 사용하지 않지만, 시그니처 통일용
+    -- out_path:    Excel로 저장할 경로 (None이면 저장 안 함)
+    → 반환값: { "섹션명": DataFrame, … }
+    """
+
+    # 1) 각 테이블 계산
+    df_tdd_knee      = compute_knee_tdd_table(pro_file, golfer_file)
+    df_rot_knee      = compute_knee_rotation_table(pro_file, golfer_file)
+    df_tdd_pelvis    = compute_pelvis_tdd_table(pro_file, golfer_file)
+    df_rot_pelvis    = compute_pelvis_rotation_table(pro_file, golfer_file)
+    df_tdd_shoulder  = compute_shoulder_tdd_table(pro_file, golfer_file)
+    df_rot_shoulder  = compute_shoulder_rotation_table(pro_file, golfer_file)
+    df_tdd_arm       = compute_arm_tdd_table(pro_file, golfer_file)
+    df_rot_arm       = compute_arm_rotation_table(pro_file, golfer_file)
+    df_tdd_club      = compute_club_tdd_table(pro_file, golfer_file)
+    df_rot_club      = compute_club_rotation_table(pro_file, golfer_file)
     df_pelvis_center = compute_pelvis_center_deviation(pro_file, golfer_file)
-    df_knee_center = compute_knee_center_deviation(pro_file, golfer_file)
+    df_knee_center   = compute_knee_center_deviation(pro_file, golfer_file)
     df_shoulder_center = compute_shoulder_center_deviation(pro_file, golfer_file)
     df_xyz_diff_summary = compute_xyz_diff_summary(pro_file, golfer_file)
 
+    # 2) 결과 모아서 dict으로
+    results: dict[str, pd.DataFrame] = {
+        "▶ Knee TDD Table":           df_tdd_knee,
+        "▶ Knee Rotation Table":      df_rot_knee,
+        "▶ Pelvis TDD Table":         df_tdd_pelvis,
+        "▶ Pelvis Rotation Table":    df_rot_pelvis,
+        "▶ Shoulder TDD Table":       df_tdd_shoulder,
+        "▶ Shoulder Rotation Table":  df_rot_shoulder,
+        "▶ Arm TDD Table":            df_tdd_arm,
+        "▶ Arm Rotation Table":       df_rot_arm,
+        "▶ Club TDD Table":           df_tdd_club,
+        "▶ Club Rotation Table":      df_rot_club,
+        "▶ Pelvis Center Deviation":  df_pelvis_center,
+        "▶ Knee Center Deviation":    df_knee_center,
+        "▶ Shoulder Center Deviation":df_shoulder_center,
+        "▶ XYZ Diff Summary":         df_xyz_diff_summary,
+    }
 
-    # ─── 3) 엑셀에 저장 ─────────────────────────────────────────
-    out = Path("pelvis_analysis.xlsx")
-    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
-        wb = writer.book
-        ws = wb.add_worksheet("Summary")
-        writer.sheets["Summary"] = ws
-        title_fmt = wb.add_format({"bold": True, "align": "left"})
+    # 3) Excel 저장 (out_path이 주어진 경우에만)
+    if out_path:
+        with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
+            for title, df in results.items():
+                sheet = title[:31]  # Excel 시트명 최대 31자
+                df.to_excel(writer, sheet_name=sheet, index=True)
+        print(f"▶️ Excel saved to {out_path.resolve()}")
 
-        sections = [
-            ("▶ Knee TDD Table",          df_tdd_knee),
-            ("▶ Knee Rotation Table",     df_rot_knee),
-            ("▶ Pelvis TDD Table",       df_tdd_pelvis),
-            ("▶ Pelvis Rotation Table",  df_rot_pelvis),
-            ("▶ Shoulder TDD Table",     df_tdd_shoulder),
-            ("▶ Shoulder Rotation Table", df_rot_shoulder),
-            ("▶ Arm TDD Table",          df_tdd_arm),
-            ("▶ Arm Rotation Table",     df_rot_arm),
-            ("▶ Club TDD Table",         df_tdd_club),
-            ("▶ Club Rotation Table",    df_rot_club),
-            ("▶ Pelvis Center Deviation", df_pelvis_center),
-            ("▶ Knee Center Deviation",   df_knee_center),
-            ("▶ Shoulder Center Deviation", df_shoulder_center),
-            ("▶ XYZ Diff Summary",        df_xyz_diff_summary),
-        ]
+    return results
 
-        row = 0
-        for title, df in sections:
-            ws.write(row, 0, title, title_fmt)
-            df.to_excel(writer, "Summary", startrow=row+1, startcol=0, index=True)
-            row += len(df) + 3
-
-    print(f"▶️ 결과가 '{out.name}'에 저장되었습니다.")
 
 if __name__ == "__main__":
-    main()
+    # 로컬 CLI 테스트
+    base = Path("/Users/park_sh/Desktop/sim_pro")
+    pro    = base / "driver/Rory McIlroy/first_data_transition.xlsx"
+    golfer = base / "test/sample_first.xlsx"
+
+    dfs = main(pro, golfer, times=[], out_path=Path("pelvis_analysis.xlsx"))
+    for section, df in dfs.items():
+        print(f"\n== {section} ==")
+        print(df.head())

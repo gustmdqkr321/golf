@@ -1,0 +1,5 @@
+##### % ./venv/bin/python main.py     
+
+
+##### 앱 실행 명령어
+- streamlit run main.py
