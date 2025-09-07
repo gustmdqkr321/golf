@@ -19,12 +19,46 @@ DEFAULT_AMA_PATH = "/Users/park_sh/Desktop/sim_pro/레퍼/test/hong.xlsx"
 # ── 캐시된 로더 ───────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def read_xlsx_to_array(file_or_path):
-    """UploadedFile 또는 경로를 받아 numpy array로 반환"""
-    try:
-        return pd.read_excel(file_or_path, header=None, engine="openpyxl").values
-    except Exception:
-        return pd.read_excel(file_or_path, header=None).values
+    name = getattr(file_or_path, "name", str(file_or_path))
+    suffix = Path(name).suffix.lower()
 
+    fobj = file_or_path
+    if hasattr(file_or_path, "getvalue"):  # UploadedFile
+        fobj = io.BytesIO(file_or_path.getvalue())
+
+    try:
+        if suffix in (".xlsx", ".xlsm", ".xltx", ".xltm"):
+            try:
+                import openpyxl  # ensure installed
+            except ImportError:
+                st.error("`.xlsx`를 읽으려면 `openpyxl`이 필요합니다. requirements.txt에 `openpyxl>=3.1.5`를 추가하세요.")
+                return None
+            df = pd.read_excel(fobj, header=None, engine="openpyxl")
+        elif suffix == ".csv":
+            df = pd.read_csv(fobj, header=None, encoding_errors="ignore")
+        elif suffix == ".xls":
+            try:
+                import xlrd
+            except ImportError:
+                st.error("`.xls`를 읽으려면 `xlrd<2.0`이 필요합니다. requirements.txt에 추가하세요.")
+                return None
+            df = pd.read_excel(fobj, header=None, engine="xlrd")
+        elif suffix == ".xlsb":
+            try:
+                import pyxlsb
+            except ImportError:
+                st.error("`.xlsb`를 읽으려면 `pyxlsb`가 필요합니다. requirements.txt에 추가하세요.")
+                return None
+            df = pd.read_excel(fobj, header=None, engine="pyxlsb")
+        else:
+            st.error(f"지원하지 않는 파일 형식입니다: {suffix}")
+            return None
+
+        return df.values
+    except Exception as e:
+        st.exception(e)
+        return None
+        
 def try_read_default(p: Path | None):
     if not p:
         return None, None
