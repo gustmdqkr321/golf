@@ -3,9 +3,10 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 
-from .features import hand_hight as hand
-from .features import swing_tempo as swing
-from .features import body_arm as fc   # ← 같은 섹션(features)에서 import
+from .features import _1hand_hight as hand
+from .features import _2swing_tempo as swing
+from .features import _3body_arm as fc   # ← 같은 섹션(features)에서 import
+from .features import _4center as rot
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -38,7 +39,7 @@ def run(ctx=None):
     ama_arr = ctx["ama_arr"]
 
     # 새 탭 추가: 📋 비율 표
-    tab1, tab2, tab3 = st.tabs(["🖐 손높이/각도 비교", "⏱ 템포 · 리듬", "📋 비율 표"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🖐 손높이/각도 비교", "⏱ 템포 · 리듬", "📋 비율 표", "중심"])
 
     # ── 탭 1: 손높이/각도 비교 ────────────────────────────────────────────────
     with tab1:
@@ -57,22 +58,20 @@ def run(ctx=None):
     # ── 탭 2: 템포/리듬 ───────────────────────────────────────────────────────
     with tab2:
         colA, colB, colC, colD = st.columns(4)
-        with colA:
-            tempo_std = st.number_input("템포 표준(프로, 2번)", value=1.14, step=0.01, format="%.2f")
-        with colB:
-            tempo_tol = st.number_input("템포 middle 허용오차", value=0.05, step=0.01, format="%.2f")
-        with colC:
-            rhythm_std = st.number_input("리듬 표준(프로, 3번)", value=2.80, step=0.05, format="%.2f")
-        with colD:
-            rhythm_tol = st.number_input("리듬 middle 허용오차", value=0.20, step=0.01, format="%.2f")
+        # with colA:
+        #     tempo_std = st.number_input("템포 표준(프로, 2번)", value=1.14, step=0.01, format="%.2f")
+        # with colB:
+        #     tempo_tol = st.number_input("템포 middle 허용오차", value=0.05, step=0.01, format="%.2f")
+        # with colC:
+        #     rhythm_std = st.number_input("리듬 표준(프로, 3번)", value=2.80, step=0.05, format="%.2f")
+        # with colD:
+        #     rhythm_tol = st.number_input("리듬 middle 허용오차", value=0.20, step=0.01, format="%.2f")
 
         pro_m = swing.compute_tempo_rhythm(
-            pro_arr, tempo_std=tempo_std, rhythm_std=rhythm_std,
-            tempo_tol=tempo_tol, rhythm_tol=rhythm_tol
+            pro_arr
         )
         ama_m = swing.compute_tempo_rhythm(
-            ama_arr, tempo_std=tempo_std, rhythm_std=rhythm_std,
-            tempo_tol=tempo_tol, rhythm_tol=rhythm_tol
+            ama_arr
         )
 
         cmp_df = swing.build_tempo_rhythm_compare(pro_m, ama_m)
@@ -155,4 +154,28 @@ def run(ctx=None):
             data=table.to_csv(index=False).encode("utf-8-sig"),
             file_name="ratio_pro_vs_ama.csv",
             mime="text/csv",
+        )
+
+    # 탭 4: 🔄 회전 각도 — 골반/어깨 수평·수직 회전각 (프로/일반)
+    # ────────────────────────────────────────────────────────────────────────
+    with tab4:
+        st.subheader("회전 요약 (1-4 구간, 설명 없이)")
+        spec_df = rot.build_rotation_spec_table_simple(pro_arr, ama_arr, start=1, end=4)
+        abs_df  = rot.build_abs_1_10_table(pro_arr, ama_arr)
+
+        # 테이블 합치기
+        spec_df = pd.concat([spec_df, abs_df], ignore_index=True)
+
+        # ★ 프로-일반 차이 컬럼 추가
+        for col in ("프로", "일반"):
+            spec_df[col] = pd.to_numeric(spec_df[col], errors="coerce")
+        spec_df["차이(프로-일반)"] = (spec_df["프로"] - spec_df["일반"]).round(2)
+
+        st.dataframe(
+            spec_df.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
         )
