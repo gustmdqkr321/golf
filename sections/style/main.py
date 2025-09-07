@@ -7,6 +7,9 @@ from .features import _1hand_hight as hand
 from .features import _2swing_tempo as swing
 from .features import _3body_arm as fc   # ← 같은 섹션(features)에서 import
 from .features import _4center as rot
+from .features import _6arc as rasi
+from .features import _7takeback as wri_chd
+from .features import _8top as top
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -38,8 +41,19 @@ def run(ctx=None):
     pro_arr = ctx["pro_arr"]
     ama_arr = ctx["ama_arr"]
 
+
+
+
+    ###
     # 새 탭 추가: 📋 비율 표
-    tab1, tab2, tab3, tab4 = st.tabs(["🖐 손높이/각도 비교", "⏱ 템포 · 리듬", "📋 비율 표", "중심"])
+    ###
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top"])
+
+
+
+
+
+
 
     # ── 탭 1: 손높이/각도 비교 ────────────────────────────────────────────────
     with tab1:
@@ -178,4 +192,88 @@ def run(ctx=None):
                 "차이(프로-일반)": "{:+.2f}",
             }),
             use_container_width=True
+        )
+
+    # ── 탭 6: 🎯 RASI — 상대적 아크 크기 지수 ─────────────────────────────────
+    with tab6:
+        st.subheader("RASI (Relative Arc Size Index) — 시트 기반")
+
+        # 팔/클럽 길이 입력 (m)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**프로 길이 입력 (m)**")
+            p_arm  = st.number_input("팔 길이 (m) · 프로",   value=0.75, step=0.01, format="%.2f", key="rasi_p_arm")
+            p_club = st.number_input("클럽 길이 (m) · 프로", value=1.00, step=0.01, format="%.2f", key="rasi_p_club")
+        with c2:
+            st.markdown("**일반 길이 입력 (m)**")
+            a_arm  = st.number_input("팔 길이 (m) · 일반",   value=0.78, step=0.01, format="%.2f", key="rasi_a_arm")
+            a_club = st.number_input("클럽 길이 (m) · 일반", value=1.02, step=0.01, format="%.2f", key="rasi_a_club")
+
+        # 표 생성: 총 아크는 시트(CN/CO/CP)에서 자동 계산
+        rasi_df = rasi.build_rasi_table_from_arrays(
+            pro_arr, ama_arr,
+            arm_len_pro=p_arm, club_len_pro=p_club,
+            arm_len_ama=a_arm, club_len_ama=a_club,
+        )
+
+        st.dataframe(
+            rasi_df.style.format({
+                "프로": "{:.3f}",
+                "일반": "{:.3f}",
+                "차이(프로-일반)": "{:+.3f}",
+            }),
+            use_container_width=True
+        )
+
+        # (옵션) 세부 구간 Di 확인
+        with st.expander("구간별 클럽헤드 이동거리(Di) 보기"):
+            c3, c4 = st.columns(2)
+            with c3:
+                st.caption("프로")
+                st.dataframe(rasi.build_rasi_segments_table(pro_arr), use_container_width=True)
+            with c4:
+                st.caption("일반")
+                st.dataframe(rasi.build_rasi_segments_table(ama_arr), use_container_width=True)
+
+        st.download_button(
+            "CSV 다운로드(RASI)",
+            data=rasi_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="rasi_compare.csv",
+            mime="text/csv",
+        )
+
+    with tab7:
+        st.subheader("손목–클럽헤드 표 (2프레임 & 삼각합)")
+
+        # 프로/일반 비교표
+        cmp_df = wri_chd.build_wri_chd_table_compare(pro_arr, ama_arr)
+        st.dataframe(
+            cmp_df.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+
+        # CSV
+        st.download_button(
+            "CSV 다운로드(손목·클럽헤드)",
+            data=cmp_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="wri_chd_compare.csv",
+            mime="text/csv",
+        )
+
+    with tab8:
+        st.subheader("프레임 4: CN4-AX4 / CO4-AY4 / CP4-AZ4")
+        df_f4 = top.build_frame4_cnax_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_f4.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임4)",
+            data=df_f4.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame4_cnax_compare.csv",
+            mime="text/csv",
         )
