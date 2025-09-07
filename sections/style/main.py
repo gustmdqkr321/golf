@@ -10,6 +10,7 @@ from .features import _4center as rot
 from .features import _6arc as rasi
 from .features import _7takeback as wri_chd
 from .features import _8top as top
+from .features import _9top2 as top2
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -265,15 +266,36 @@ def run(ctx=None):
         )
 
     with tab8:
-        st.subheader("프레임 4: CN4-AX4 / CO4-AY4 / CP4-AZ4")
+        st.subheader("프레임 4 분석")
+
+        # 표 1: CN4-AX4 / CO4-AY4 / CP4-AZ4
+        st.markdown("**프레임 4 벡터 차**")
         df_f4 = top.build_frame4_cnax_table(pro_arr, ama_arr)
         st.dataframe(
             df_f4.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
             use_container_width=True
         )
         st.download_button(
-            "CSV 다운로드(프레임4)",
+            "CSV 다운로드(프레임4 벡터 차)",
             data=df_f4.to_csv(index=False).encode("utf-8-sig"),
-            file_name="frame4_cnax_compare.csv",
+            file_name="frame4_vector_diff.csv",
             mime="text/csv",
+            key="dl_f4_vec"
+        )
+
+        st.divider()  # 또는 st.markdown("---")
+
+        # 표 2: ∠ABC (deg)
+        st.markdown("**프레임 4 ∠ABC**")
+        df_ang = top2.build_frame4_angle_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_ang.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임4 ∠ABC)",
+            data=df_ang.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame4_angle_ABC.csv",
+            mime="text/csv",
+            key="dl_f4_ang"
         )
