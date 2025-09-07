@@ -3,6 +3,7 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 from core.loader import discover_sections
+import io
 
 st.set_page_config(page_title="Modular Streamlit App", layout="wide")
 
