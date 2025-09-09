@@ -17,7 +17,8 @@ from .features import _12club_head as chd
 from .features import _13cocking as coc
 from .features import _14lean as lean
 from .features import _15side_bend as bend
-
+from .features import _16ankle as ank
+from .features import _17opn as opn
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -55,7 +56,7 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend"])
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn"])
 
 
 
@@ -418,4 +419,37 @@ def run(ctx=None):
             file_name="am_bb_7_8_sum.csv",
             mime="text/csv",
             key="dl_am_bb_7_8"
+        )
+    
+    with tab12:
+        st.subheader("CL7 - CL1")
+        df_cl = ank.build_cl7_minus_cl1_table(pro_arr, ama_arr)  # top = _6wri_chd
+        st.dataframe(
+            df_cl.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(CL7-CL1)",
+            data=df_cl.to_csv(index=False).encode("utf-8-sig"),
+            file_name="cl7_minus_cl1.csv",
+            mime="text/csv",
+            key="dl_cl7cl1"
+        )
+
+    with tab13:
+        st.subheader("프레임 7: H7-K7 / AL7-BA7 / (AL7-BA7)-(H7-K7)")
+        df_hk = opn.build_hk_alba_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_hk.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(H7-K7 · AL7-BA7 · 조합)",
+            data=df_hk.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame7_hk_alba_table.csv",
+            mime="text/csv",
         )
