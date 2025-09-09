@@ -21,6 +21,14 @@ from .features import _16ankle as ank
 from .features import _17opn as opn
 from .features import _18_chd_clo as clo
 from .features import _19to23 as t1923
+from .features import _24center_move as cmove
+from .features import _25to26 as t2526
+from .features import _27swing_plane as plane
+from .features import _29back_down as bd
+from .features import _30rolling as roll
+from .features import _31hinge as hinge
+from .features import _32cocking as cocking
+from .features import _33cubo as cubo
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -58,7 +66,9 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn","chd clo","19-23"])
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16, tab17, tab18, tab19, tab20 = \
+    st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn","chd clo","19-23",\
+    "center move","25-26","swing plane","back down","face angle"])
 
 
 
@@ -515,3 +525,215 @@ def run(ctx=None):
                     use_container_width=True)
         st.download_button("CSV (23)", t23.to_csv(index=False).encode("utf-8-sig"),
                         "item23_4_r_kne_x.csv", "text/csv")
+    
+    with tab16:
+        st.subheader("중심 이동 거리 (프레임 1-9)")
+        df_cmove = cmove.build_abs_1_10_table(pro_arr, ama_arr).copy()
+
+        # 프로/일반 숫자 변환 후 차이 컬럼 추가
+        for c in ("프로", "일반"):
+            df_cmove[c] = pd.to_numeric(df_cmove[c], errors="coerce")
+        df_cmove["차이(프로-일반)"] = (df_cmove["프로"] - df_cmove["일반"]).round(2)
+
+        # (선택) 컬럼 순서 정리
+        if "항목" in df_cmove.columns:
+            df_cmove = df_cmove[["항목", "프로", "일반", "차이(프로-일반)"]]
+
+        st.dataframe(
+            df_cmove.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(중심 이동 거리)",
+            data=df_cmove.to_csv(index=False).encode("utf-8-sig"),
+            file_name="center_move_1_9.csv",
+            mime="text/csv",
+            key="dl_center_move"
+        )
+
+    with tab17:
+        st.subheader("25) 6 L WRI/CHD X")
+        t25 = t2526.build_25_wri_chd_x(pro_arr, ama_arr)
+        st.dataframe(
+            t25.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV (25)",
+            t25.to_csv(index=False).encode("utf-8-sig"),
+            "item25_6_l_wri_chd_x.csv",
+            "text/csv"
+        )
+
+        st.divider()
+        st.subheader("26) 2/6 swing path")
+        t26 = t2526.build_26_swing_path(pro_arr, ama_arr)
+        st.dataframe(
+            t26.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV (26)",
+            t26.to_csv(index=False).encode("utf-8-sig"),
+            "item26_2_6_swing_path.csv",
+            "text/csv"
+        )
+
+    with tab18:
+        st.subheader("직각삼각형 기반 ∠BAC")
+        df_bac = plane.build_right_angle_bac_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_bac.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(직각 BAC)",
+            data=df_bac.to_csv(index=False).encode("utf-8-sig"),
+            file_name="right_triangle_BAC.csv",
+            mime="text/csv"
+        )
+
+    with tab19:
+        st.subheader("Waist Y/Z 각도")
+        df_wyz = bd.build_waist_yz_table(pro_arr, ama_arr)
+        st.dataframe(df_wyz.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button(
+            "CSV 다운로드(Waist Y/Z)",
+            data=df_wyz.to_csv(index=False).encode("utf-8-sig"),
+            file_name="waist_yz_table.csv",
+            mime="text/csv",
+        )
+
+    with tab20:
+        st.subheader("요약: 10·11번 핵심 지표")
+        tbl_1011 = roll.build_summary_10_11_table(pro_arr, ama_arr)
+        st.dataframe(
+            tbl_1011.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(요약 10·11)",
+            data=tbl_1011.to_csv(index=False).encode("utf-8-sig"),
+            file_name="summary_10_11.csv",
+            mime="text/csv",
+        )
+
+        with st.expander("전체 표 보기 (옵션)"):
+            p_df, a_df = roll.build_full_tables(pro_arr, ama_arr)
+            c1, c2 = st.columns(2)
+            with c1:
+                st.caption("프로(프레임별 + 요약)")
+                st.dataframe(p_df, use_container_width=True)
+            with c2:
+                st.caption("일반(프레임별 + 요약)")
+                st.dataframe(a_df, use_container_width=True)
+
+            st.download_button(
+                "CSV 다운로드(프로 전체표)",
+                data=p_df.to_csv(index=False).encode("utf-8-sig"),
+                file_name="summary_full_pro.csv",
+                mime="text/csv",
+                key="dl_full_pro",
+            )
+            st.download_button(
+                "CSV 다운로드(일반 전체표)",
+                data=a_df.to_csv(index=False).encode("utf-8-sig"),
+                file_name="summary_full_ama.csv",
+                mime="text/csv",
+                key="dl_full_ama",
+            )
+        st.divider()
+        st.subheader("Hinging 1–4")
+        df_h14 = hinge.build_hinging_1_4_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_h14.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(Hinging 1–4)",
+            data=df_h14.to_csv(index=False).encode("utf-8-sig"),
+            file_name="hinging_1_4.csv",
+            mime="text/csv",
+        )
+
+        with st.expander("전체표 보기 (프레임별 · 구간 · 유지지수)"):
+            df_full = hinge.build_hinging_full_table(pro_arr, ama_arr)
+            st.dataframe(
+                df_full.style.format({
+                    "프로 힌징(°)":"{:.2f}", "Δ프로":"{:+.2f}",
+                    "일반 힌징(°)":"{:.2f}", "Δ일반":"{:+.2f}",
+                }),
+                use_container_width=True
+            )
+            st.download_button(
+                "CSV 다운로드(힌징 전체표)",
+                data=df_full.to_csv(index=False).encode("utf-8-sig"),
+                file_name="hinging_full_table.csv",
+                mime="text/csv",
+                key="dl_hinging_full",
+            )
+        st.divider()
+        st.subheader("Cocking 요약 (4, 6, 13)")
+        sum_df = cocking.build_cocking_summary_table(pro_arr, ama_arr)
+        st.dataframe(
+            sum_df.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(Cocking 요약)",
+            data=sum_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="cocking_summary_4_6_13.csv",
+            mime="text/csv",
+        )
+
+        with st.expander("전체표 보기"):
+            full_df = cocking.build_cocking_full_table(pro_arr, ama_arr)
+            st.dataframe(
+                full_df.style.format({
+                    "프로 ∠ABC(°)":"{:.2f}", "일반 ∠ABC(°)":"{:.2f}",
+                    "Δ프로(°)":"{:+.2f}",   "Δ일반(°)":"{:+.2f}",
+                }, na_rep=""),
+                use_container_width=True
+            )
+            st.download_button(
+                "CSV 다운로드(Cocking 전체표)",
+                data=full_df.to_csv().encode("utf-8-sig"),
+                file_name="cocking_full_table.csv",
+                mime="text/csv",
+            )
+        st.divider()
+        st.subheader("Bowing 요약 (4, 6, 13)")
+        sum_df = cubo.build_bowing_summary_table(pro_arr, ama_arr)
+        st.dataframe(
+            sum_df.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(Bowing 요약)",
+            data=sum_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="bowing_summary_4_6_13.csv",
+            mime="text/csv",
+        )
+
+        with st.expander("전체표 보기 (프레임별 · 구간 · 유지지수)"):
+            full_df = cubo.build_bowing_full_table(pro_arr, ama_arr)
+            st.dataframe(
+                full_df.style.format({
+                    "프로 Rel. Bowing(°)":"{:.2f}",
+                    "일반 Rel. Bowing(°)":"{:.2f}",
+                    "Δ프로":"{:+.2f}",
+                    "Δ일반":"{:+.2f}",
+                }, na_rep=""),
+                use_container_width=True
+            )
+            st.download_button(
+                "CSV 다운로드(Bowing 전체표)",
+                data=full_df.to_csv().encode("utf-8-sig"),
+                file_name="bowing_full_table.csv",
+                mime="text/csv",
+            )
