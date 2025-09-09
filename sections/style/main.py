@@ -11,6 +11,10 @@ from .features import _6arc as rasi
 from .features import _7takeback as wri_chd
 from .features import _8top as top
 from .features import _9top2 as top2
+from .features import _10sho_turn as sho_turn
+from .features import _11x_factor as xfac
+from .features import _12club_head as chd
+from .features import _13cocking as coc
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -48,7 +52,7 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top"])
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking"])
 
 
 
@@ -298,4 +302,86 @@ def run(ctx=None):
             file_name="frame4_angle_ABC.csv",
             mime="text/csv",
             key="dl_f4_ang"
+        )
+
+        st.divider()
+
+        # 표 3: BB4-AM4 / AN4-BC4
+        st.markdown("**프레임 4 추가 비교: BB4-AM4 / AN4-BC4**")
+        df_extra = sho_turn.build_frame4_bbam_anbc_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_extra.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임4 BB/AM & AN/BC)",
+            data=df_extra.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame4_bbam_anbc_compare.csv",
+            mime="text/csv",
+            key="dl_f4_extra"
+        )
+
+        st.divider()
+
+        # 표 4: (AN4-BC4) - ((J1-M1) - (J4-M4))
+        st.markdown("**프레임 4: AN4-BC4 - ((J1-M1) - (J4-M4))**")
+        df_anbcjm = xfac.build_frame4_anbc_minus_jm_delta_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_anbcjm.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임4 AN/BC & J/M 조합)",
+            data=df_anbcjm.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame4_anbc_minus_jm_delta.csv",
+            mime="text/csv",
+            key="dl_f4_anbcjm"
+        )
+
+        st.divider()
+
+        # 표 5: CQ4 - CN4
+        st.markdown("**프레임 4: CQ4 - CN4**")
+        df_cqcn = chd.build_frame4_cqcn_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_cqcn.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임4 CQ4-CN4)",
+            data=df_cqcn.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame4_cq4_minus_cn4.csv",
+            mime="text/csv",
+            key="dl_f4_cqcn"
+        )
+
+    with tab9:
+        st.subheader("프레임 4·6·8 ∠ABC")
+        df_468 = coc.build_frames_angle_ABC_table(pro_arr, ama_arr)  # ← 위 feature 함수 호출
+        st.dataframe(
+            df_468.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(프레임 4·6·8 ∠ABC)",
+            data=df_468.to_csv(index=False).encode("utf-8-sig"),
+            file_name="angles_ABC_f468.csv",
+            mime="text/csv",
+            key="dl_f468_angles"
         )

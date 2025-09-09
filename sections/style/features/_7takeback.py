@@ -39,8 +39,8 @@ def _wri_chd_values(arr: np.ndarray) -> dict:
     AC2 = float(np.hypot(AB2, BC2))                 # >= 0
 
     # ③ BC (AC=|BN1|)
-    AB3 = (g(arr, "BM1") - g(arr, "CN1"))**2
-    AC3 = (g(arr, "BN1") - g(arr, "BC1"))**2
+    AB3 = g(arr, "BN1")
+    AC3 = g(arr, "BM1") - g(arr, "CN1")
     BC3 = float(np.hypot(AB3, AC3))                 # >= 0
 
     triple_sum = AC1 + AC2 + BC3
