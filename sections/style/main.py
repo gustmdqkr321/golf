@@ -15,6 +15,9 @@ from .features import _10sho_turn as sho_turn
 from .features import _11x_factor as xfac
 from .features import _12club_head as chd
 from .features import _13cocking as coc
+from .features import _14lean as lean
+from .features import _15side_bend as bend
+
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -52,7 +55,7 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking"])
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend"])
 
 
 
@@ -384,4 +387,35 @@ def run(ctx=None):
             file_name="angles_ABC_f468.csv",
             mime="text/csv",
             key="dl_f468_angles"
+        )
+    
+    with tab10:
+        st.subheader("프레임 7: CP7 - AZ7")
+        df_cp7 = lean.build_cp7_minus_az7_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_cp7.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(CP7-AZ7)",
+            data=df_cp7.to_csv(index=False).encode("utf-8-sig"),
+            file_name="frame7_cp7_minus_az7.csv",
+            mime="text/csv",
+            key="dl_cp7az7"
+        )
+
+    # ── 새 탭 2: (AM7 - BB7) + (AM8 - BB8) ─────────────────────────────────────
+    with tab11:
+        st.subheader("(AM7 - BB7) + (AM8 - BB8)")
+        df_sum = bend.build_am_bb_7_8_sum_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_sum.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(AM7/8-BB7/8 합)",
+            data=df_sum.to_csv(index=False).encode("utf-8-sig"),
+            file_name="am_bb_7_8_sum.csv",
+            mime="text/csv",
+            key="dl_am_bb_7_8"
         )
