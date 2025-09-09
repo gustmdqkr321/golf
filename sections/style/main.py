@@ -19,6 +19,8 @@ from .features import _14lean as lean
 from .features import _15side_bend as bend
 from .features import _16ankle as ank
 from .features import _17opn as opn
+from .features import _18_chd_clo as clo
+from .features import _19to23 as t1923
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -56,7 +58,7 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn"])
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn","chd clo","19-23"])
 
 
 
@@ -453,3 +455,63 @@ def run(ctx=None):
             file_name="frame7_hk_alba_table.csv",
             mime="text/csv",
         )
+    
+    with tab14:
+        st.subheader("CN−CQ 스타일 (프레임 8 & 6)")
+        df_cn_cq = clo.build_cn_cq_style_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_cn_cq.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(CN−CQ 스타일)",
+            data=df_cn_cq.to_csv(index=False).encode("utf-8-sig"),
+            file_name="cn_cq_style_f8_f6.csv",
+            mime="text/csv",
+            key="dl_cn_cq_style"
+        )
+
+    with tab15:
+        st.subheader("항목 19–23 표")
+            
+        t19 = t1923.build_19_r_wri_elb_x(pro_arr, ama_arr)
+        st.dataframe(t19.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button("CSV (19)", t19.to_csv(index=False).encode("utf-8-sig"),
+                        "item19_r_wri_elb_x.csv", "text/csv")
+
+        st.divider()
+        st.subheader("20) 1/4 Head Y, Z")
+        t20 = t1923.build_20_head_quarter(pro_arr, ama_arr)
+        st.dataframe(t20.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button("CSV (20)", t20.to_csv(index=False).encode("utf-8-sig"),
+                        "item20_head_quarter.csv", "text/csv")
+
+        st.divider()
+        st.subheader("21) 8 CHD Y")
+        t21 = t1923.build_21_8_chd_y(pro_arr, ama_arr)
+        st.dataframe(t21.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button("CSV (21)", t21.to_csv(index=False).encode("utf-8-sig"),
+                        "item21_8_chd_y.csv", "text/csv")
+
+        st.divider()
+        st.subheader("22) 4/5 CHD SHALLOWING")
+        t22 = t1923.build_22_chd_shallowing(pro_arr, ama_arr)
+        st.dataframe(t22.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button("CSV (22)", t22.to_csv(index=False).encode("utf-8-sig"),
+                        "item22_shallowing.csv", "text/csv")
+
+        st.divider()
+        st.subheader("23) 4 R KNE X")
+        t23 = t1923.build_23_4_r_kne_x(pro_arr, ama_arr)
+        st.dataframe(t23.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                    use_container_width=True)
+        st.download_button("CSV (23)", t23.to_csv(index=False).encode("utf-8-sig"),
+                        "item23_4_r_kne_x.csv", "text/csv")
