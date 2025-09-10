@@ -29,6 +29,10 @@ from .features import _30rolling as roll
 from .features import _31hinge as hinge
 from .features import _32cocking as cocking
 from .features import _33cubo as cubo
+from .features import _34power_speed as ps
+from .features import _35force as force
+from .features import _36body as body
+from .features import _37setup_style as ss
 
 META = {"id": "swing", "title": "스윙 비교", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
@@ -66,9 +70,9 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16, tab17, tab18, tab19, tab20 = \
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16, tab17, tab18, tab19, tab20, tab21, tab22, tab23 = \
     st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn","chd clo","19-23",\
-    "center move","25-26","swing plane","back down","face angle"])
+    "center move","25-26","swing plane","back down","face angle","힘,스피드","body","setup style"])
 
 
 
@@ -737,3 +741,102 @@ def run(ctx=None):
                 file_name="bowing_full_table.csv",
                 mime="text/csv",
             )
+    with tab21:
+        st.subheader("B4 & (B7 - B4)")
+        df_b47 = ps.build_b4_b7_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_b47.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(B4 & B7-B4)",
+            data=df_b47.to_csv(index=False).encode("utf-8-sig"),
+            file_name="b4_b7_minus_b4.csv",
+            mime="text/csv",
+        )
+        st.divider()
+        st.subheader("헤드 아크 길이 (CN/CO/CP 폴리라인)")
+        col1, col2 = st.columns(2)
+        with col1:
+            start = st.number_input("시작 프레임", min_value=1, max_value=10, value=1, step=1)
+        with col2:
+            end   = st.number_input("끝 프레임",   min_value=1, max_value=10, value=10, step=1)
+        if start >= end:
+            st.warning("시작 프레임은 끝 프레임보다 작아야 합니다.")
+        else:
+            show_seg = st.checkbox("세그먼트별 길이 포함", value=True)
+            df_arc = ps.build_head_arc_polyline_table(
+                pro_arr, ama_arr, start=start, end=end, include_segments=show_seg
+            )
+            st.dataframe(
+                df_arc.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+                use_container_width=True
+            )
+            st.download_button(
+                "CSV 다운로드(헤드 아크 길이)",
+                data=df_arc.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"head_arc_polyline_{start}-{end}.csv",
+                mime="text/csv"
+            )
+        st.divider()
+        st.subheader("DL7 − DQ7")
+        df_dl = force.build_dl7_dq7_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_dl.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(DL7−DQ7)",
+            data=df_dl.to_csv(index=False).encode("utf-8-sig"),
+            file_name="dl7_minus_dq7.csv",
+            mime="text/csv",
+        )
+        st.divider()
+        st.subheader("(B7 − B4) 정규화 표")
+        df_norm = force.build_b7b4_normalized_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_norm.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(B7−B4 정규화)",
+            data=df_norm.to_csv(index=False).encode("utf-8-sig"),
+            file_name="b7_minus_b4_normalized.csv",
+            mime="text/csv",
+            key="dl_b7b4_norm"
+        )
+    with tab22:
+        st.subheader("Knee–Ankle–Waist 조합(프레임 1, 직각 AC 포함)")
+        df_knee = body.build_knee_combo_table(pro_arr, ama_arr)
+        st.dataframe(
+            df_knee.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(조합 합계)",
+            data=df_knee.to_csv(index=False).encode("utf-8-sig"),
+            file_name="knee_ankle_waist_combo.csv",
+            mime="text/csv",
+        )
+        st.divider()
+        df_ratio = body.build_knee_total_over_two_ac_table(pro_arr, ama_arr)
+        st.dataframe(df_ratio.style.format({"프로":"{:.3f}","일반":"{:.3f}","차이(프로-일반)":"{:+.3f}"}),
+                    use_container_width=True)
+    
+    with tab23:
+        st.subheader("BN/AY · 각도(2D) · 정규화 비율 (6항목)")
+        df6 = ss.build_combo6_table(pro_arr, ama_arr)
+        st.dataframe(
+            df6.style.format({
+                "프로": "{:.2f}",
+                "일반": "{:.2f}",
+                "차이(프로-일반)": "{:+.2f}",
+            }),
+            use_container_width=True
+        )
+        st.download_button(
+            "CSV 다운로드(6항목 콤보)",
+            data=df6.to_csv(index=False).encode("utf-8-sig"),
+            file_name="combo6_table.csv",
+            mime="text/csv",
+        )
