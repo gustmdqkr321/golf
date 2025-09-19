@@ -125,3 +125,5 @@ def build_bac_cases_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFr
     return pd.DataFrame(
         rows, columns=["항목", "정의", "프로(°)", "일반(°)", "차이(프로-일반)", "판정(메모)"]
     )
+    
+    
