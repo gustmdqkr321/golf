@@ -16,8 +16,8 @@ def g(arr: np.ndarray, code: str) -> float:
 def build_frame4_bbam_anbc_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     """프레임4: BB4-AM4, AN4-BC4 (프로/일반/차이)"""
     items = [
-        ("BB4-AM4", ("BB4", "AM4")),
-        ("AN4-BC4", ("AN4", "BC4")),
+        ("수평", ("BB4", "AM4")),
+        ("수직", ("AN4", "BC4")),
     ]
     rows = []
     for label, (c1, c2) in items:

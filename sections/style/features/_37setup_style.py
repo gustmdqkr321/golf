@@ -92,12 +92,12 @@ def build_combo6_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame
     a = _compute_items(ama_arr)
 
     labels = [
-        "BN1 − AY1",
-        "직각 ∠ABC | AC=K1−BA1, CB=BB1−L1",
-        "∠BDE | B=(K1,L1), D=(CB1,CC1), E=(CK1,CL1)",
-        "∠AFB | A=(BA1,BB1), F=(BM1,BN1), B=(K1,L1)",
-        "(AC1 + AC2 + BC3) / |CA1−CM1|",
-        "|CA1−CP1| / |CA1−CM1|",
+        "2.1.1.1 Grip",
+        "Frontal Bend",
+        "Leg Hinge",
+        "Arm Extension",
+        "어깨 폭 대비 보폭 크기",
+        "스탠스 대비 볼 위치",
     ]
 
     rows = []

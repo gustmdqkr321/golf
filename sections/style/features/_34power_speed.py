@@ -27,8 +27,8 @@ def build_b4_b7_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     a_d  = g(ama_arr, "B7") - g(ama_arr, "B4")
 
     rows = [
-        ["B4",        round(p_b4, 2), round(a_b4, 2), round(p_b4 - a_b4, 2)],
-        ["B7 - B4",   round(p_d,  2), round(a_d,  2), round(p_d  - a_d,  2)],
+        ["1/4",        round(p_b4, 2), round(a_b4, 2), round(p_b4 - a_b4, 2)],
+        ["4/7",   round(p_d,  2), round(a_d,  2), round(p_d  - a_d,  2)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 

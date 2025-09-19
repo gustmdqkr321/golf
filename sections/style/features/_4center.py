@@ -179,8 +179,8 @@ def build_rotation_spec_table_simple(pro_arr: np.ndarray, ama_arr: np.ndarray, *
     _, _, a_sho = segment_sum_signed(ama_sho, start, end)
 
     rows = [
-        ["1-4 WAI", round(p_wai, 2), round(a_wai, 2)],
-        ["1-4 SHO", round(p_sho, 2), round(a_sho, 2)],
+        ["1-7 WAI", round(p_wai, 2), round(a_wai, 2)],
+        ["1-7 SHO", round(p_sho, 2), round(a_sho, 2)],
         ["Total",   round(p_wai + p_sho, 2), round(a_wai + a_sho, 2)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반"])

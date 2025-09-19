@@ -66,8 +66,8 @@ def build_summary_10_11_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Da
     A = summarize_from_arr(ama_arr)
 
     rows = [
-        ["10) 1-4 순수 롤링 합", round(P["sum1_4"], 2), round(A["sum1_4"], 2), round(P["sum1_4"] - A["sum1_4"], 2)],
-        ["11) 코킹 유지량(1-7)", round(P["diff1_7"], 2), round(A["diff1_7"], 2), round(P["diff1_7"] - A["diff1_7"], 2)],
+        [" 1-4 ", round(P["sum1_4"], 2), round(A["sum1_4"], 2), round(P["sum1_4"] - A["sum1_4"], 2)],
+        ["4-7", round(P["diff1_7"], 2), round(A["diff1_7"], 2), round(P["diff1_7"] - A["diff1_7"], 2)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 

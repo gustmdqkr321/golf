@@ -29,7 +29,7 @@ def build_dl7_dq7_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFram
     a = g(ama_arr, "DL7") - g(ama_arr, "DQ7")
     rows = [["DL7 − DQ7", round(p, 2), round(a, 2), round(p - a, 2)]]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
-    
+
 def build_b7b4_normalized_table(pro_arr, ama_arr) -> pd.DataFrame:
     """
     이미지 기준 항목들을 (B7-B4)로 나눈 정규화 표.
@@ -70,13 +70,13 @@ def build_b7b4_normalized_table(pro_arr, ama_arr) -> pd.DataFrame:
         return vals
 
     labels = [
-        "[(J7+M7) − (J4+M4)] / (B7−B4)",
-        "[(AN7+BC7) − (AN4+BC4)] / (B7−B4)",
-        "(AE7 − AE4) / (B7−B4)",
-        "(BP7 − BP4) / (B7−B4)",
-        "(I7  − I4)  / (B7−B4)",
-        "(AM7 − AM4) / (B7−B4)",
-        "(AD7 − AD4) / (B7−B4)",
+        "Z Force WAI",
+        "Z Force SHO",
+        "Z Force HED",
+        "Y Force L KNE X F",
+        "Y Force L WAI Y F",
+        "Y Force L SHO Y F",
+        "Y Force HED Y F",
     ]
     p_vals = compute_rows(pro_arr)
     a_vals = compute_rows(ama_arr)

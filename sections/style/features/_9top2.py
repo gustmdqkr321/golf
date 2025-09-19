@@ -28,7 +28,7 @@ def build_frame4_angle_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Dat
     """프레임4 각도표: ∠ABC (deg) — 항목/프로/일반/차이"""
     angle_p = _angle_ABC_deg_frame4(pro_arr)
     angle_a = _angle_ABC_deg_frame4(ama_arr)
-    df = pd.DataFrame([["∠ABC (deg)", round(angle_p, 2), round(angle_a, 2)]],
+    df = pd.DataFrame([["L Elb Ang", round(angle_p, 2), round(angle_a, 2)]],
                       columns=["항목", "프로", "일반"])
     df["차이(프로-일반)"] = (pd.to_numeric(df["프로"], errors="coerce")
                            - pd.to_numeric(df["일반"], errors="coerce")).round(2)

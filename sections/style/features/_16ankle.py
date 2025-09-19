@@ -17,7 +17,7 @@ def build_cl7_minus_cl1_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Da
     """프레임: CL7 - CL1 (프로/일반/차이)"""
     p = g(pro_arr, "CL7") - g(pro_arr, "CL1")
     a = g(ama_arr, "CL7") - g(ama_arr, "CL1")
-    df = pd.DataFrame([["CL7 - CL1", round(p, 2), round(a, 2)]],
+    df = pd.DataFrame([["7 R Ankle Y", round(p, 2), round(a, 2)]],
                       columns=["항목", "프로", "일반"])
     df["차이(프로-일반)"] = (pd.to_numeric(df["프로"], errors="coerce")
                           - pd.to_numeric(df["일반"], errors="coerce")).round(2)

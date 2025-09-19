@@ -16,7 +16,7 @@ def g(arr: np.ndarray, code: str) -> float:
 def build_19_r_wri_elb_x(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     p = g(pro_arr, "BG4") - g(pro_arr, "BM4")
     a = g(ama_arr, "BG4") - g(ama_arr, "BM4")
-    df = pd.DataFrame([["4 R WRI/ELB X (BG4-BM4)", p, a, p-a]],
+    df = pd.DataFrame([["4 R WRI/ELB X", p, a, p-a]],
                       columns=["항목","프로","일반","차이(프로-일반)"])
     return df.round(2)
 
@@ -25,15 +25,15 @@ def build_20_head_quarter(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFr
     pY = g(pro_arr,"AD7")-g(pro_arr,"AD1"); aY = g(ama_arr,"AD7")-g(ama_arr,"AD1")
     pZ = g(pro_arr,"AE7")-g(pro_arr,"AE1"); aZ = g(ama_arr,"AE7")-g(ama_arr,"AE1")
     rows = [
-        ["1/4 Head Y (AD7-AD1)", pY, aY, pY-aY],
-        ["1/4 Head Z (AE7-AE1)", pZ, aZ, pZ-aZ],
+        ["1/4 Head Y", pY, aY, pY-aY],
+        ["1/4 Head Z", pZ, aZ, pZ-aZ],
     ]
     return pd.DataFrame(rows, columns=["항목","프로","일반","차이(프로-일반)"]).round(2)
 
 # 21) 8 CHD Y : CO8
 def build_21_8_chd_y(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     p = g(pro_arr,"CO8"); a = g(ama_arr,"CO8")
-    return pd.DataFrame([["8 CHD Y (CO8)", p, a, p-a]],
+    return pd.DataFrame([["8 CHD Y", p, a, p-a]],
                         columns=["항목","프로","일반","차이(프로-일반)"]).round(2)
 
 # 22) 4/5 CHD SHALLOWING : CN5 - CN4  (대/중/소 분류)
@@ -47,7 +47,7 @@ def build_22_chd_shallowing(pro_arr: np.ndarray, ama_arr: np.ndarray,
     p = g(pro_arr,"CN5")-g(pro_arr,"CN4")
     a = g(ama_arr,"CN5")-g(ama_arr,"CN4")
     style = f"P:{grade(p)} / A:{grade(a)}"
-    df = pd.DataFrame([["4/5 CHD SHALLOWING (CN5-CN4)", p, a, p-a, style]],
+    df = pd.DataFrame([["4/5 CHD SHALLOWING", p, a, p-a, style]],
                       columns=["항목","프로","일반","차이(프로-일반)","등급"])
     return df.round(2)
 
@@ -55,5 +55,5 @@ def build_22_chd_shallowing(pro_arr: np.ndarray, ama_arr: np.ndarray,
 def build_23_4_r_kne_x(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     p = g(pro_arr,"CB4")-g(pro_arr,"CB1")
     a = g(ama_arr,"CB4")-g(ama_arr,"CB1")
-    return pd.DataFrame([["4 R KNE X (CB4-CB1)", p, a, p-a]],
+    return pd.DataFrame([["4 R KNE X", p, a, p-a]],
                         columns=["항목","프로","일반","차이(프로-일반)"]).round(2)

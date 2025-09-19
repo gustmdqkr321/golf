@@ -62,13 +62,13 @@ def build_cocking_summary_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
     a_maint = _maintenance_percent(a_top, a_dh)
 
     rows = [
-        ["4) TOP ∠ABC(°)",  round(p_top, 2) if pd.notna(p_top) else np.nan,
+        ["4) TOP",  round(p_top, 2) if pd.notna(p_top) else np.nan,
                              round(a_top, 2) if pd.notna(a_top) else np.nan,
                              round((p_top - a_top), 2) if pd.notna(p_top) and pd.notna(a_top) else np.nan],
-        ["6) DH ∠ABC(°)",   round(p_dh,  2) if pd.notna(p_dh)  else np.nan,
+        ["6) DH",   round(p_dh,  2) if pd.notna(p_dh)  else np.nan,
                              round(a_dh,  2) if pd.notna(a_dh)  else np.nan,
                              round((p_dh - a_dh),  2) if pd.notna(p_dh)  and pd.notna(a_dh)  else np.nan],
-        ["13) Cocking_Maintenance(%)",
+        ["Cocking_Maintenance(%)",
                              p_maint, a_maint,
                              round((p_maint - a_maint), 2) if pd.notna(p_maint) and pd.notna(a_maint) else np.nan],
     ]

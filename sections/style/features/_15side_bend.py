@@ -18,7 +18,7 @@ def build_am_bb_7_8_sum_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Da
         return (g(arr, "AM7") - g(arr, "BB7")) + (g(arr, "AM8") - g(arr, "BB8"))
     p = val(pro_arr)
     a = val(ama_arr)
-    df = pd.DataFrame([["(AM7 - BB7) + (AM8 - BB8)", round(p, 2), round(a, 2)]],
+    df = pd.DataFrame([["Side Bend", round(p, 2), round(a, 2)]],
                       columns=["항목", "프로", "일반"])
     df["차이(프로-일반)"] = (pd.to_numeric(df["프로"], errors="coerce")
                           - pd.to_numeric(df["일반"], errors="coerce")).round(2)

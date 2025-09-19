@@ -90,9 +90,9 @@ def build_bowing_summary_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.D
     a_m = _maintenance(a_top, a_dh)
 
     rows = [
-        ["4) TOP Rel. Bowing(°)", round(p_top, 2), round(a_top, 2), round(p_top - a_top, 2)],
-        ["6) DH Rel. Bowing(°)",  round(p_dh,  2), round(a_dh,  2), round(p_dh  - a_dh,  2)],
-        ["13) Bowing_Maintenance(%)",
+        ["4) TOP", round(p_top, 2), round(a_top, 2), round(p_top - a_top, 2)],
+        ["6) DH",  round(p_dh,  2), round(a_dh,  2), round(p_dh  - a_dh,  2)],
+        ["Bowing_Maintenance(%)",
                                  p_m, a_m,
                                  (round(p_m - a_m, 2) if (pd.notna(p_m) and pd.notna(a_m)) else np.nan)],
     ]

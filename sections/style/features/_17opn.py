@@ -39,9 +39,9 @@ def build_hk_alba_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFram
     style_str = f"P:{style(p1)}, A:{style(a1)}"
 
     rows = [
-        ["H7 - K7",                 round(p1, 2), round(a1, 2), round(p1 - a1, 2), style_str],
-        ["AL7 - BA7",               round(p2, 2), round(a2, 2), round(p2 - a2, 2), style_str],
-        ["(AL7-BA7) - (H7-K7)",     round(p3, 2), round(a3, 2), round(p3 - a3, 2)],
+        ["WAI",                 round(p1, 2), round(a1, 2), round(p1 - a1, 2), style_str],
+        ["SHO",               round(p2, 2), round(a2, 2), round(p2 - a2, 2), style_str],
+        ["WAI/SHO",     round(p3, 2), round(a3, 2), round(p3 - a3, 2)],
     ]
     df = pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)", "스타일"])
     return df

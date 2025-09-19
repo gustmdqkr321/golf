@@ -57,17 +57,14 @@ def build_knee_combo_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataF
     a_vals = _rows_for(ama_arr)
 
     labels = [
-        "dist(knee, ankle) @1",
-        "dist(knee, waist)  @1",
-        "AC | AB=K1−BA1, BC=BB1−L1",
-        "AC | AB=BA1−AC1, BC=AD1−BB1",
-        "CL1",
         "키",
     ]
 
     rows = []
-    for lab, pv, av in zip(labels, p_vals, a_vals):
-        rows.append([lab, round(pv, 2), round(av, 2), round(pv - av, 2)])
+    lab = "키"
+    pv = p_vals[-1]
+    av = a_vals[-1]
+    rows.append([lab, round(pv, 2), round(av, 2), round(pv - av, 2)])
 
     # ── 추가: 합계/AD1 ─────────────────────────────────────────────
     p_total, a_total = p_vals[-1], a_vals[-1]
@@ -138,7 +135,7 @@ def build_knee_total_over_two_ac_table(pro_arr: np.ndarray, ama_arr: np.ndarray)
     a_ratio = safe_div(a_total, a_den)
 
     rows = [[
-        "합계 / (AC(BB1−BH1,BA1−BG1)+AC(BH1−BM1,BG1−BM1))",
+        "상대적 팔 길이 지수",
         round(p_ratio, 3), round(a_ratio, 3), round(p_ratio - a_ratio, 3)
     ]]
     return pd.DataFrame(rows, columns=["항목","프로","일반","차이(프로-일반)"])

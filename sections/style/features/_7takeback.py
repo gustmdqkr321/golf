@@ -58,8 +58,8 @@ def build_wri_chd_table_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
     a = _wri_chd_values(ama_arr)
 
     rows = [
-        ["2 L WRI/CHD X (CN2-BM2)", round(p["x"], 2),   round(a["x"], 2)],
-        ["2 L WRI/CHD Y (CO2-AX2)", round(p["y"], 2),   round(a["y"], 2)],
-        ["세 길이의 합(①AC+②AC+③BC)", round(p["sum3"], 2), round(a["sum3"], 2)],
+        ["2 L WRI/CHD X", round(p["x"], 2),   round(a["x"], 2)],
+        ["2 L WRI/CHD Y", round(p["y"], 2),   round(a["y"], 2)],
+        ["l WRI/CHD Z", round(p["sum3"], 2), round(a["sum3"], 2)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반"])

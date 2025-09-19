@@ -74,9 +74,9 @@ def build_rasi_table_from_arrays(
     rel_tb_ama = ab_ama / (abs(rasi_ama) if np.isfinite(rasi_ama) and rasi_ama != 0 else np.nan)
 
     rows = [
-        ["total_arc (m)",   round(T_pro, 3),          round(T_ama, 3)],
-        ["arm_length (m)",  round(float(arm_len_pro), 3), round(float(arm_len_ama), 3)],
-        ["club_length (m)", round(float(club_len_pro), 3), round(float(club_len_ama), 3)],
+        # ["total_arc (m)",   round(T_pro, 3),          round(T_ama, 3)],
+        # ["arm_length (m)",  round(float(arm_len_pro), 3), round(float(arm_len_ama), 3)],
+        # ["club_length (m)", round(float(club_len_pro), 3), round(float(club_len_ama), 3)],
         ["RASI",            round(rasi_pro, 3),       round(rasi_ama, 3)],
         ["상대적 테이크백 아크 크기 지수", round(rel_tb_pro, 3), round(rel_tb_ama, 3)],
     ]

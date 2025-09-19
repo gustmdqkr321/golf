@@ -56,9 +56,9 @@ def build_right_angle_bac_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
     p4, a4 = angle4(pro_arr), angle4(ama_arr)
 
     rows = [
-        ["① BAC (AB=AX1−CN1, BC=AY1)",               _fmt(p1), _fmt(a1), _fmt(p1 - a1)],
-        ["② BAC (AB=|CN6−AX6|, BC=CO6−AY6)",         _fmt(p2), _fmt(a2), _fmt(p2 - a2)],
-        ["③ BAC (AB=BG6−BM6, BC=BH6−BN6)",           _fmt(p3), _fmt(a3), _fmt(p3 - a3)],
-        ["④ (①) − BAC(AB=AX7−CN7, BC=AY7)",          _fmt(p1 - p4), _fmt(a1 - a4), _fmt((p1 - p4) - (a1 - a4))],
+        ["ADD",               _fmt(p1), _fmt(a1), _fmt(p1 - a1)],
+        ["DS",         _fmt(p2), _fmt(a2), _fmt(p2 - a2)],
+        ["DS R ARM",           _fmt(p3), _fmt(a3), _fmt(p3 - a3)],
+        ["1/7",          _fmt(p1 - p4), _fmt(a1 - a4), _fmt((p1 - p4) - (a1 - a4))],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])

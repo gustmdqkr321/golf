@@ -70,9 +70,9 @@ def run(ctx=None):
     ###
     # 새 탭 추가: 📋 비율 표
     ###
-    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16, tab17, tab18, tab19, tab20, tab21, tab22, tab23 = \
+    tab1, tab2, tab3, tab4, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15, tab16, tab17, tab18, tab19, tab20, tab21, tab22, tab23,tab_sum = \
     st.tabs(["손높이", "스윙 템포", "비율 표", "중심", "아크", "테이크백", "top", "cocking","lean","side bend","ankle","opn","chd clo","19-23",\
-    "center move","25-26","swing plane","back down","face angle","힘,스피드","body","setup style"])
+    "center move","25-26","swing plane","back down","face angle","힘,스피드","body","setup style","요약"])
 
 
 
@@ -838,5 +838,208 @@ def run(ctx=None):
             "CSV 다운로드(6항목 콤보)",
             data=df6.to_csv(index=False).encode("utf-8-sig"),
             file_name="combo6_table.csv",
+            mime="text/csv",
+        )
+
+    
+    with tab_sum:
+        st.subheader("전체 요약표 (모든 표 + 번호만 표시 / 5번은 번호만 건너뜀)")
+
+        # ── 공통 정규화: '번호 / 항목 / 프로 / 일반 / 차이' 포맷으로 맞추기 ──
+        def _normalize(df: pd.DataFrame, num: str) -> pd.DataFrame:
+            if df is None or df.empty:
+                return pd.DataFrame()
+            d = df.copy()
+
+            # 대표 라벨 컬럼 추정 → "항목" 없으면 첫 컬럼을 사용
+            label_col = "항목" if "항목" in d.columns else d.columns[0]
+            d = d.rename(columns={label_col: "항목"})
+
+            # 프로/일반 이름 표준화(괄호/단위가 섞여 오는 경우 대비)
+            ren = {}
+            for c in d.columns:
+                if c.startswith("프로(") or c.startswith("프로 "): ren[c] = "프로"
+                if c.startswith("일반(") or c.startswith("일반 "): ren[c] = "일반"
+            d = d.rename(columns=ren)
+
+            # 차이 없으면 생성
+            if "차이(프로-일반)" not in d.columns and {"프로","일반"}.issubset(d.columns):
+                for c in ("프로","일반"):
+                    d[c] = pd.to_numeric(d[c], errors="coerce")
+                d["차이(프로-일반)"] = (d["프로"] - d["일반"]).round(3)
+
+            cols = ["번호","항목"] + [c for c in ("프로","일반","차이(프로-일반)") if c in d.columns]
+            d.insert(0, "번호", num)
+
+            # ▶ 번호는 블록의 첫 행에만 표시
+            if len(d) > 1:
+                d.iloc[1:, d.columns.get_loc("번호")] = ""
+
+            return d[cols]
+
+        # 번호 증가 + **라벨 5만 건너뛰기(표는 포함)**
+        counter = 1
+        def add(df: pd.DataFrame) -> pd.DataFrame:
+            nonlocal counter
+            # 다음 번호가 5이면 라벨만 6으로 건너뛴다 (데이터는 그대로 포함)
+            label = counter
+            out = _normalize(df, f"{label:02d}")
+            counter += 1
+            if(counter == 5): counter += 1
+            elif(counter == 28): counter += 1
+            return out
+
+        blocks = []
+
+        # 01 손높이
+        _row = 4
+        _p = hand.compute_metrics(pro_arr, row=_row)
+        _a = hand.compute_metrics(ama_arr, row=_row)
+        blocks.append(add(hand.build_compare_df(_p, _a)))
+
+        # 02 스윙 템포/리듬
+        _pm = swing.compute_tempo_rhythm(pro_arr)
+        _am = swing.compute_tempo_rhythm(ama_arr)
+        blocks.append(add(swing.build_tempo_rhythm_compare(_pm, _am)))
+
+        # 03 비율 표(_3body_arm 기반)
+        def _ratio_table():
+            parts = [("knee","KNEE"), ("pelvis","WAIST"), ("shoulder","SHOULDER"), ("wrist","WRIST")]
+            def _to_num(x):
+                try: return float(str(x).replace("❗","").strip())
+                except: return float("nan")
+            def _part_sum(arrP, arrA, key, cols):
+                res = fc.build_all_tables(arrP, arrA, part=key, mass=60.0, summary_mode="mean")
+                dfm = res.table_main
+                row = dfm[dfm["Frame"]=="1-9"].iloc[0] if "1-9" in dfm["Frame"].values else dfm.tail(1).iloc[0]
+                return (_to_num(row[cols[0]]) + _to_num(row[cols[1]]) + _to_num(row[cols[2]]))
+            sums_p, sums_a = {}, {}
+            for k,_ in parts:
+                sums_p[k] = _part_sum(pro_arr, ama_arr, k, ["Rory_X","Rory_Y","Rory_Z"])
+                sums_a[k] = _part_sum(pro_arr, ama_arr, k, ["Hong_X","Hong_Y","Hong_Z"])
+            def ratio(d):
+                tot = sum(d.values()) or 1.0
+                return {k: v/tot*100.0 for k,v in d.items()}
+            rp, ra = ratio(sums_p), ratio(sums_a)
+            rows = [[label, rp[k], ra[k], rp[k]-ra[k]] for k,label in parts]
+            return pd.DataFrame(rows, columns=["항목","프로","일반","차이(프로-일반)"])
+        blocks.append(add(_ratio_table()))
+
+        # 04 회전 요약 + ABS 1–10(_4center)
+        spec_df = rot.build_rotation_spec_table_simple(pro_arr, ama_arr, start=1, end=4)
+        abs_df  = rot.build_abs_1_10_table(pro_arr, ama_arr)
+        blocks.append(add(pd.concat([spec_df, abs_df], ignore_index=True)))
+
+        # 05(라벨은 건너뜀) RASI — **표는 포함** (_6arc)
+        rasi_df = rasi.build_rasi_table_from_arrays(
+            pro_arr, ama_arr,
+            arm_len_pro=0.75, club_len_pro=1.00,
+            arm_len_ama=0.78, club_len_ama=1.02,
+        )
+        blocks.append(add(rasi_df))
+
+        # 06 테이크백(_7takeback)
+        blocks.append(add(wri_chd.build_wri_chd_table_compare(pro_arr, ama_arr)))
+
+        # 07 TOP: CN4-AX4 / CO4-AY4 / CP4-AZ4(_8top)
+        blocks.append(add(top.build_frame4_cnax_table(pro_arr, ama_arr)))
+
+        # 08 TOP: ∠ABC(_9top2)
+        blocks.append(add(top2.build_frame4_angle_table(pro_arr, ama_arr)))
+
+        # 09 SHO TURN(_10sho_turn)
+        blocks.append(add(sho_turn.build_frame4_bbam_anbc_table(pro_arr, ama_arr)))
+
+        # 10 X-FACTOR(_11x_factor)
+        blocks.append(add(xfac.build_frame4_anbc_minus_jm_delta_table(pro_arr, ama_arr)))
+
+        # 11 CLUB HEAD(_12club_head)
+        blocks.append(add(chd.build_frame4_cqcn_table(pro_arr, ama_arr)))
+
+        # 12 COCKING(4·6·8)(_13cocking)
+        blocks.append(add(coc.build_frames_angle_ABC_table(pro_arr, ama_arr)))
+
+        # 13 LEAN: CP7 - AZ7(_14lean)
+        blocks.append(add(lean.build_cp7_minus_az7_table(pro_arr, ama_arr)))
+
+        # 14 SIDE BEND 합(_15side_bend)
+        blocks.append(add(bend.build_am_bb_7_8_sum_table(pro_arr, ama_arr)))
+
+        # 15 ANKLE: CL7 - CL1(_16ankle)
+        blocks.append(add(ank.build_cl7_minus_cl1_table(pro_arr, ama_arr)))
+
+        # 16 OPEN: H7-K7 / AL7-BA7 / 조합(_17opn)
+        blocks.append(add(opn.build_hk_alba_table(pro_arr, ama_arr)))
+
+        # 17 CHD CLO: CN−CQ 스타일(_18_chd_clo)
+        blocks.append(add(clo.build_cn_cq_style_table(pro_arr, ama_arr)))
+
+        # 18~22 항목 19–23(_19to23)
+        blocks.append(add(t1923.build_19_r_wri_elb_x(pro_arr, ama_arr)))
+        blocks.append(add(t1923.build_20_head_quarter(pro_arr, ama_arr)))
+        blocks.append(add(t1923.build_21_8_chd_y(pro_arr, ama_arr)))
+        blocks.append(add(t1923.build_22_chd_shallowing(pro_arr, ama_arr)))
+        blocks.append(add(t1923.build_23_4_r_kne_x(pro_arr, ama_arr)))
+
+        # 23 CENTER MOVE: ABS 1–10(_24center_move)
+        blocks.append(add(cmove.build_abs_1_10_table(pro_arr, ama_arr)))
+
+        # 24~25 25–26(_25to26)
+        blocks.append(add(t2526.build_25_wri_chd_x(pro_arr, ama_arr)))
+        blocks.append(add(t2526.build_26_swing_path(pro_arr, ama_arr)))
+
+        # 26 SWING PLANE: 직각 BAC(_27swing_plane)
+        blocks.append(add(plane.build_right_angle_bac_table(pro_arr, ama_arr)))
+
+        # 27 BACK/DOWN: Waist Y/Z(_29back_down)
+        blocks.append(add(bd.build_waist_yz_table(pro_arr, ama_arr)))
+
+        # 28 ROLL 요약 10·11(_30rolling)
+        blocks.append(add(roll.build_summary_10_11_table(pro_arr, ama_arr)))
+
+        # 29 HINGE: 1–4(_31hinge)
+        blocks.append(add(hinge.build_hinging_1_4_table(pro_arr, ama_arr)))
+
+        # 30 COCKING 요약(4,6,13)(_32cocking)
+        blocks.append(add(cocking.build_cocking_summary_table(pro_arr, ama_arr)))
+
+        # 31 BOWING 요약(4,6,13)(_33cubo)
+        blocks.append(add(cubo.build_bowing_summary_table(pro_arr, ama_arr)))
+
+        # 32 POWER/SPEED: B4 & (B7−B4)(_34power_speed)
+        blocks.append(add(ps.build_b4_b7_table(pro_arr, ama_arr)))
+
+        # 33 POWER/SPEED: 헤드 아크 폴리라인(1–10, 세그먼트 제외)
+        blocks.append(add(ps.build_head_arc_polyline_table(
+            pro_arr, ama_arr, start=1, end=10, include_segments=False
+        )))
+
+        # 34 FORCE: DL7−DQ7(_35force)
+        blocks.append(add(force.build_dl7_dq7_table(pro_arr, ama_arr)))
+
+        # 35 FORCE: (B7−B4) 정규화(_35force)
+        blocks.append(add(force.build_b7b4_normalized_table(pro_arr, ama_arr)))
+
+        # 36 BODY: 조합 & 비율(_36body)
+        blocks.append(add(body.build_knee_combo_table(pro_arr, ama_arr)))
+        blocks.append(add(body.build_knee_total_over_two_ac_table(pro_arr, ama_arr)))
+
+        # 37 SETUP STYLE: 6항목 콤보(_37setup_style)
+        blocks.append(add(ss.build_combo6_table(pro_arr, ama_arr)))
+
+        # 합치고 표시
+        summary_df = pd.concat([b for b in blocks if not b.empty], ignore_index=True)
+
+        st.dataframe(
+            summary_df.style.format({
+                "프로": "{:.3f}", "일반": "{:.3f}", "차이(프로-일반)": "{:+.3f}",
+            }, na_rep=""),
+            use_container_width=True
+        )
+
+        st.download_button(
+            "CSV 다운로드(전체 요약표)",
+            data=summary_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="summary_all_tables.csv",
             mime="text/csv",
         )

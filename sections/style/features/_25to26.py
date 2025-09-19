@@ -32,7 +32,7 @@ def build_25_wri_chd_x(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame
     d = _fmt(p - a)
 
     return pd.DataFrame(
-        [["6 L WRI/CHD X (CN6-AX6)", p, a, d]],
+        [["6 L WRI/CHD X", p, a, d]],
         columns=["항목", "프로", "일반", "차이(프로-일반)"]
     )
 

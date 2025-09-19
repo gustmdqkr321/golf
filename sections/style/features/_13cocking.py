@@ -12,7 +12,7 @@ def g(arr: np.ndarray, code: str) -> float:
     letters = "".join(filter(str.isalpha, code))
     num     = int("".join(filter(str.isdigit, code)))
     return float(arr[num - 1, col_letters_to_index(letters)])
-    
+
 def _angle_ABC_deg_at(arr: np.ndarray, frame: int) -> float:
     """frame에서 A=(AR,AS,AT), B=(AX,AY,AZ), C=(CN,CO,CP)의 ∠ABC [deg]"""
     f = str(frame)
@@ -36,7 +36,7 @@ def build_frames_angle_ABC_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
     for f in frames:
         p = _angle_ABC_deg_at(pro_arr, f)
         a = _angle_ABC_deg_at(ama_arr, f)
-        rows.append([f"∠ABC (deg) @ {f}", round(p, 2), round(a, 2)])
+        rows.append([f"∠ {f}", round(p, 2), round(a, 2)])
     df = pd.DataFrame(rows, columns=["항목", "프로", "일반"])
     df["차이(프로-일반)"] = (pd.to_numeric(df["프로"], errors="coerce")
                           - pd.to_numeric(df["일반"], errors="coerce")).round(2)

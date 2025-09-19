@@ -25,7 +25,7 @@ def build_frame4_anbc_minus_jm_delta_table(pro_arr: np.ndarray, ama_arr: np.ndar
     a = metric(ama_arr)
 
     df = pd.DataFrame(
-        [["AN4-BC4 - ((J1-M1) - (J4-M4))", round(p, 2), round(a, 2)]],
+        [["X Factor", round(p, 2), round(a, 2)]],
         columns=["항목", "프로", "일반"]
     )
     df["차이(프로-일반)"] = (pd.to_numeric(df["프로"], errors="coerce")

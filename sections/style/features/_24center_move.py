@@ -82,8 +82,8 @@ def build_abs_1_10_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFra
 
 
     rows = [
-        ["1-10|abs X", x_abs_pro, x_abs_ama],
-        ["1-10|abs Y", y_abs_pro, y_abs_ama],
-        ["1-10|abs Z", z_abs_pro, z_abs_ama],
+        ["X", x_abs_pro, x_abs_ama],
+        ["Y", y_abs_pro, y_abs_ama],
+        ["Z", z_abs_pro, z_abs_ama],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반"])
