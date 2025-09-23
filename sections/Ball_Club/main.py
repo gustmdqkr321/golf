@@ -5,7 +5,7 @@ from .features import _1distance as gs
 from .features import _2direction as dir
 from .features import _3etc as etc
 
-META = {"id": "gs", "title": "GS 표(프로·일반)", "icon": "📑", "order": 17}
+META = {"id": "gs", "title": "Ball & Club", "icon": "📑", "order": 17}
 def get_metadata(): return META
 
 def run(ctx=None):
