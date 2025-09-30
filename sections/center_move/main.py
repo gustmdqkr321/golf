@@ -27,8 +27,6 @@ def run(ctx=None):
     smdi = feat.build_smdi_mrmi_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(smdi.style.format({"SMDI":"{:.2f}","MRMI X":"{:.2f}","MRMI Y":"{:.2f}","MRMI Z":"{:.2f}"}),
                  use_container_width=True)
-    st.download_button("CSV 내려받기 (SMDI/MRMI)", smdi.to_csv().encode("utf-8-sig"),
-                       "center_move_smdi_mrmi.csv", "text/csv", key="cm_smdi")
 
 
     # 2) ΔX
@@ -36,8 +34,6 @@ def run(ctx=None):
     dx = feat.build_delta_x_table(pro_arr, ama_arr)
     st.dataframe(dx.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    st.download_button("CSV 내려받기 (ΔX)", dx.to_csv().encode("utf-8-sig"),
-                       "center_move_dx.csv", "text/csv", key="cm_dx")
 
     st.divider()
 
@@ -46,8 +42,6 @@ def run(ctx=None):
     dy = feat.build_delta_y_table(pro_arr, ama_arr)
     st.dataframe(dy.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    st.download_button("CSV 내려받기 (ΔY)", dy.to_csv().encode("utf-8-sig"),
-                       "center_move_dy.csv", "text/csv", key="cm_dy")
 
     st.divider()
 
@@ -56,8 +50,6 @@ def run(ctx=None):
     dz = feat.build_delta_z_table(pro_arr, ama_arr)
     st.dataframe(dz.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    st.download_button("CSV 내려받기 (ΔZ)", dz.to_csv().encode("utf-8-sig"),
-                       "center_move_dz.csv", "text/csv", key="cm_dz")
 
     st.divider()
 

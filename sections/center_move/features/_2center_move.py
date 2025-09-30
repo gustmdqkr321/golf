@@ -267,4 +267,4 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
         for lbl in labels:
             cols.append(f"{part} 이동비율({lbl},%)")
 
-    return pd.DataFrame(rows)[cols]
+    return pd.DataFrame(rows)[cols] 

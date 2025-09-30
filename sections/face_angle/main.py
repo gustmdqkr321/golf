@@ -38,12 +38,6 @@ def run(ctx=None):
         df.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
         use_container_width=True
     )
-    st.download_button(
-        "CSV (Face Angle 표)",
-        data=df.to_csv(index=False).encode("utf-8-sig"),
-        file_name="face_angle_table.csv",
-        mime="text/csv",
-    )
 
 
     st.divider()
@@ -71,13 +65,6 @@ def run(ctx=None):
         use_container_width=True
     )
 
-    st.download_button(
-        "CSV 다운로드 (Cocking)",
-        data=df.to_csv(index=True).encode("utf-8-sig"),
-        file_name="cocking_table.csv",
-        mime="text/csv",
-        key="dl_cocking_table",
-    )
     
     st.divider()
     st.subheader("2D Cocking")
@@ -86,12 +73,7 @@ def run(ctx=None):
         df_yz.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
         use_container_width=True
     )
-    st.download_button(
-        "CSV (YZ 평면 각도 비교)",
-        data=df_yz.to_csv(index=False).encode("utf-8-sig"),
-        file_name="yz_plane_angle_compare.csv",
-        mime="text/csv",
-    )
+    
 
     st.divider()
     st.subheader("Hinging")
@@ -103,12 +85,6 @@ def run(ctx=None):
             "Similarity(0-100)":"{:.2f}",
         }, na_rep=""),
         use_container_width=True
-    )
-    st.download_button(
-        "CSV (Hinging 비교표)",
-        data=df_hinge.to_csv().encode("utf-8-sig"),
-        file_name="hinging_compare.csv",
-        mime="text/csv",
     )
 
 
@@ -142,16 +118,14 @@ def run(ctx=None):
     st.subheader("CLUB  : (-): CLOSE, (+) : OPEN")
     df1 = aux.build_tilt_numerators_table(base_pro, base_ama)
     st.dataframe(df1.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}), use_container_width=True)
-    st.download_button("CSV (Tilt Numerators)", df1.to_csv(index=True).encode("utf-8-sig"), "tilt_numerators.csv", "text/csv")
-
+   
     st.divider()
     st.subheader("Forearm Supination 1")
     df2 = aux.build_ay_bn_diffs_table(base_pro, base_ama)
     st.dataframe(df2.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}), use_container_width=True)
-    st.download_button("CSV (AY-BN + STD)", df2.to_csv(index=True).encode("utf-8-sig"), "ay_bn_diffs.csv", "text/csv")
-
+  
     st.divider()
     st.subheader("Forearm Supination 2")
     df3 = aux.build_abc_angles_table(base_pro, base_ama)
     st.dataframe(df3.style.format({"프로 ∠ABC(°)":"{:.2f}","일반 ∠ABC(°)":"{:.2f}","차이(프로-일반)":"{:+.2f}"}), use_container_width=True)
-    st.download_button("CSV (∠ABC)", df3.to_csv(index=True).encode("utf-8-sig"), "abc_angles.csv", "text/csv")
+   

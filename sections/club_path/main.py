@@ -49,13 +49,6 @@ def run(ctx=None):
         df_all.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
         use_container_width=True
     )
-    st.download_button(
-        "CSV (Club Path 종합)",
-        data=df_all.to_csv(index=False).encode("utf-8-sig"),
-        file_name="club_path_summary.csv",
-        mime="text/csv",
-        key="dl_club_path_all",
-    )
     st.divider()
     st.subheader("CHD")
     df_cnax = chd.build_cn_ax_1_10_table(base_pro, base_ama)
@@ -63,25 +56,13 @@ def run(ctx=None):
         df_cnax.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
         use_container_width=True
     )
-    st.download_button(
-        "CSV (CN1~10 − AX1~10)",
-        data=df_cnax.to_csv(index=False).encode("utf-8-sig"),
-        file_name="cn_ax_1_10_compare.csv",
-        mime="text/csv",
-        key="dl_cnax_1_10",
-    )
 
     st.divider()
     st.subheader("Yaw")
     df_yaw = yaw.build_yaw_compare_table(ctx["pro_arr"], ctx["ama_arr"])
     st.dataframe(df_yaw.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
                 use_container_width=True)
-    st.download_button(
-        "CSV (Yaw 1–10)",
-        data=df_yaw.to_csv(index=False).encode("utf-8-sig"),
-        file_name="yaw_compare_1_10.csv",
-        mime="text/csv",
-    )
+
 
     st.divider()
     st.subheader("Vertical")
@@ -89,12 +70,6 @@ def run(ctx=None):
     st.dataframe(
         df_pitch.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
         use_container_width=True
-    )
-    st.download_button(
-        "CSV (Pitch 1–10)",
-        data=df_pitch.to_csv(index=False).encode("utf-8-sig"),
-        file_name="pitch_compare_1_10.csv",
-        mime="text/csv",
     )
 
     st.divider()

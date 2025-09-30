@@ -41,12 +41,6 @@ def run(ctx=None):
             df.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
             use_container_width=True
         )
-        st.download_button(
-            "CSV (유사프로-첫 표)",
-            data=df.to_csv(index=False).encode("utf-8-sig"),
-            file_name="similar_pro_first_table.csv",
-            mime="text/csv"
-        )
 
         st.divider()
         st.caption("계산 행: 1 (피처 내부 고정)")
@@ -54,12 +48,6 @@ def run(ctx=None):
         st.dataframe(
             df1.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
             use_container_width=True
-        )
-        st.download_button(
-            "CSV (BN1-AY1)",
-            data=df1.to_csv(index=False).encode("utf-8-sig"),
-            file_name="bn1_minus_ay1.csv",
-            mime="text/csv"
         )
 
         st.divider()
@@ -69,12 +57,6 @@ def run(ctx=None):
             df2.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
             use_container_width=True
         )
-        st.download_button(
-            "CSV (abs(CA1-CM1))",
-            data=df2.to_csv(index=False).encode("utf-8-sig"),
-            file_name="abs_ca1_minus_cm1.csv",
-            mime="text/csv"
-        )
 
         st.divider()
         st.caption("행 4 고정: A=(AX4,AY4,AZ4), B=(AC4,AD4,AE4)")
@@ -82,12 +64,6 @@ def run(ctx=None):
         st.dataframe(
             df3.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),
             use_container_width=True
-        )
-        st.download_button(
-            "CSV (AB 거리·행4)",
-            data=df3.to_csv(index=False).encode("utf-8-sig"),
-            file_name="ab_distance_row4.csv",
-            mime="text/csv"
         )
 
         st.divider()
@@ -97,24 +73,13 @@ def run(ctx=None):
             df_ab.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
             use_container_width=True
         )
-        st.download_button(
-            "CSV (A1→B4 3D 거리)",
-            data=df_ab.to_csv(index=False).encode("utf-8-sig"),
-            file_name="ab_distance_A1_B4.csv",
-            mime="text/csv"
-        )
 
         st.divider()
         st.caption("A=(AX4,AY4,AZ4),  B= ((AL4+BA4)/2, (AM4+BB4)/2, (AN4+BC4)/2)")
         df = ab4mid.build_compare_table(pro_arr, ama_arr)
         st.dataframe(df.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
                     use_container_width=True)
-        st.download_button(
-            "CSV (A4 vs B(avg) 3D)",
-            data=df.to_csv(index=False).encode("utf-8-sig"),
-            file_name="ab_distance_A4_vs_Bavg4.csv",
-            mime="text/csv"
-        )
+   
 
         st.divider()
         st.caption("A=(AR1/4,AS1/4,AT1/4) · B=(BG1/4,BH1/4,BI1/4) — 3D 거리와 Δ(4−1)")
@@ -123,26 +88,18 @@ def run(ctx=None):
             df.style.format({"프로":"{:.3f}", "일반":"{:.3f}", "차이(프로-일반)":"{:+.3f}"}),
             use_container_width=True
         )
-        st.download_button(
-            "CSV (AR↔BG 거리 1·4 & Δ)",
-            data=df.to_csv(index=False).encode("utf-8-sig"),
-            file_name="ar_bg_dist_1_4_delta.csv",
-            mime="text/csv"
-        )
 
         st.divider()
         df1 = cndiff.build_compare_table(pro_arr, ama_arr)
         st.dataframe(df1.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
                     use_container_width=True)
-        st.download_button("CSV (CN/CO/CP 차)", df1.to_csv(index=False).encode("utf-8-sig"),
-                        "cn_co_cp_diffs_row4.csv", "text/csv")
+       
 
         st.divider()
         df2 = bmet.build_compare_table(pro_arr, ama_arr)
         st.dataframe(df2.style.format({"프로":"{:.3f}","일반":"{:.3f}","차이(프로-일반)":"{:+.3f}"}),
                     use_container_width=True)
-        st.download_button("CSV (B 지표)", df2.to_csv(index=False).encode("utf-8-sig"),
-                        "b_metrics.csv", "text/csv")
+       
 
     with tab_sim:
         st.subheader("유사도 검색 (고정 폴더 사용)")
@@ -167,12 +124,7 @@ def run(ctx=None):
                 result = vec.topk_per_pro(result, per_pro=per_pro)
 
             st.dataframe(result.style.format({"cosine_sim": "{:.4f}"}), use_container_width=True)
-            st.download_button(
-                "CSV 다운로드(유사도 결과)",
-                data=result.to_csv(index=False).encode("utf-8-sig"),
-                file_name="similarity_topk.csv",
-                mime="text/csv"
-            )
+
 
             # (옵션) 지금 DB를 파일로 저장 & 다운로드
             colA, colB = st.columns(2)

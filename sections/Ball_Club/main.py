@@ -34,12 +34,7 @@ def run(ctx=None):
         df.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
         use_container_width=True
     )
-    st.download_button(
-        "CSV (GS+무지개 비교표)",
-        data=df.to_csv(index=False).encode("utf-8-sig"),
-        file_name="gs_mixed_compare.csv",
-        mime="text/csv",
-    )
+
     st.divider()
     df = dir.build_gs_club_table(gs_pro, gs_ama, base_pro, base_ama)
     st.dataframe(

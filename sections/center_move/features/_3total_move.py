@@ -113,11 +113,6 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
                       mark_map: dict[str, tuple[str, str | None]],
                       axis_letter: str,
                       pro_label: str="Pro", ama_label: str="Ama") -> pd.DataFrame:
-    """
-    프레임별 값 + (1-4, 4-7, 7-10, Total) 4줄 추가.
-    1-4/4-7/7-10 구간은 Pro와 Ama 부호 불일치 시 Ama 쪽에 '!' 표시.
-    Total 은 |d1|+|d2|+|d3|.
-    """
     # 1) 프레임별 값 테이블
     data = {"Frame": _FRAMES_LABELS}
     for part, (L, R) in mark_map.items():
@@ -130,13 +125,18 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
         data[f"{ama_label} {part} {axis_letter}"] = a_vals
     df = pd.DataFrame(data)
 
-    # 2) 구간 변화량 계산
-    # 인덱스: 0=ADD, 3=TOP, 6=IMP, 9=Finish → (1-4), (4-7), (7-10)
+    # (★추가) 숫자 컬럼을 확실히 float로 캐스팅
     numeric_cols = [c for c in df.columns if c != "Frame"]
-    d1 = (df.loc[3, numeric_cols] - df.loc[0, numeric_cols]).round(2)  # 1→4
-    d2 = (df.loc[6, numeric_cols] - df.loc[3, numeric_cols]).round(2)  # 4→7
-    d3 = (df.loc[9, numeric_cols] - df.loc[6, numeric_cols]).round(2)  # 7→10
-    dT = (abs(d1) + abs(d2) + abs(d3)).round(2)                       # Total = |d1|+|d2|+|d3|
+    df[numeric_cols] = df[numeric_cols].apply(
+        lambda s: pd.to_numeric(s, errors="coerce")
+    )
+
+    # 2) 구간 변화량 계산 (이제 안전하게 연산 가능)
+    # 인덱스: 0=ADD, 3=TOP, 6=IMP, 9=Finish → (1-4), (4-7), (7-10)
+    d1 = (df.loc[3, numeric_cols].astype(float) - df.loc[0, numeric_cols].astype(float)).round(2)  # 1→4
+    d2 = (df.loc[6, numeric_cols].astype(float) - df.loc[3, numeric_cols].astype(float)).round(2)  # 4→7
+    d3 = (df.loc[9, numeric_cols].astype(float) - df.loc[6, numeric_cols].astype(float)).round(2)  # 7→10
+    dT = (abs(d1) + abs(d2) + abs(d3)).round(2)  # Total = |d1|+|d2|+|d3|
 
     r1 = pd.concat([pd.Series({"Frame": "1-4"}),  d1])
     r2 = pd.concat([pd.Series({"Frame": "4-7"}),  d2])
@@ -147,18 +147,18 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
     # 3) 부호 불일치 '!' 표시 (1-4, 4-7, 7-10만)
     seg_rows = [len(df)-4, len(df)-3, len(df)-2]  # 1-4,4-7,7-10
     for col in df.columns:
-        if col == "Frame": 
+        if col == "Frame":
             continue
-        # 이 컬럼이 Ama 컬럼이면 Pro 대응 컬럼 찾기
         if col.startswith(f"{ama_label} "):
             pro_col = col.replace(f"{ama_label} ", f"{pro_label} ")
             for r in seg_rows:
                 p = float(df.at[r, pro_col])
                 a = float(df.at[r, col])
-                # 보기 좋게 ±기호와 함께, 부호 다르면 Ama에 '!' 추가
                 df.at[r, pro_col] = f"{p:+.2f}"
                 df.at[r, col]     = f"{a:+.2f}!" if p * a < 0 else f"{a:+.2f}"
-    total_row = len(df) - 1  # 'Total'
+
+    # Total 행은 보기 좋게 포맷만
+    total_row = len(df) - 1
     for col in df.columns:
         if col == "Frame":
             continue
@@ -168,6 +168,7 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
             pass
 
     return df
+
 
 # 공개 API ─────────────────────────────────────────
 def build_z_report_table(base_pro: np.ndarray, base_ama: np.ndarray,
@@ -180,4 +181,4 @@ def build_x_report_table(base_pro: np.ndarray, base_ama: np.ndarray,
 
 def build_y_report_table(base_pro: np.ndarray, base_ama: np.ndarray,
                          pro_label: str="Pro", ama_label: str="Ama") -> pd.DataFrame:
-    return _build_axis_table(base_pro, base_ama, _MARK_Y, "Y", pro_label, ama_label)
+    return _build_axis_table(base_pro, base_ama, _MARK_Y, "Y", pro_label, ama_label) 
