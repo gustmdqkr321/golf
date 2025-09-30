@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Iterable, Union
+from typing import Dict, List
 import numpy as np
 import pandas as pd
 
@@ -28,8 +28,12 @@ PARTS: Dict[str, Dict[str, List[str]]] = {
     "pelvis":   {"L": ["H",  "I",  "J" ], "R": ["K",  "L",  "M" ]},
     "shoulder": {"L": ["AL", "AM", "AN"], "R": ["BA", "BB", "BC"]},
     "wrist":    {"L": ["AX", "AY", "AZ"], "R": ["BM", "BN", "BO"]},
+    # 단일 포인트(클럽헤드)
+    "clubhead": {"L": ["CN", "CO", "CP"], "R": ["CN", "CO", "CP"]},
 }
-FRAMES = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2"]  # 1..9
+
+# 테이블에 표시하는 프레임 라벨(ADD~FH2)
+FRAMES = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2"]  # 9 labels
 
 @dataclass
 class ForceResult:
@@ -39,44 +43,57 @@ class ForceResult:
 
 # ─────────────────────── 헬퍼: 좌표/시간 ───────────────────────
 def extract_times(arr: np.ndarray) -> np.ndarray:
-    """B열 시간(초), 1..9프레임"""
-    return np.array([g(arr, f"B{t}") for t in range(1,10)], dtype=float)
+    """B열 시간(초), 1..10 프레임(ADD~Finish)"""
+    return np.array([g(arr, f"B{t}") for t in range(1, 11)], dtype=float)  # 10개
 
 def _center_series(arr: np.ndarray, part: str, cm_to_m: float = 0.01) -> np.ndarray:
-    """각 프레임(1..9)에서 (좌+우)/2 → ADD를 원점으로 평행이동, cm→m"""
+    """
+    part이 좌/우(L/R)면 평균을, 단일(C)이면 그대로 좌표를 사용.
+    1..10 프레임(ADD~Finish), cm→m, ADD를 원점으로 평행이동(가독성용).
+    """
     p = PARTS[part]
     C = []
-    for t in range(1, 10):
-        L = np.array([g(arr, f"{p['L'][0]}{t}"), g(arr, f"{p['L'][1]}{t}"), g(arr, f"{p['L'][2]}{t}")], dtype=float)
-        R = np.array([g(arr, f"{p['R'][0]}{t}"), g(arr, f"{p['R'][1]}{t}"), g(arr, f"{p['R'][2]}{t}")], dtype=float)
-        C.append((L + R) / 2.0)
-    C = np.vstack(C) * cm_to_m     # cm → m
-    C = C - C[0]                    # ADD 원점 이동(차분엔 영향 없음, 가독성용)
-    return C  # (9,3)
+    for t in range(1, 11):  # 10개 (ADD~Finish)
+        if "L" in p and "R" in p:
+            L = np.array([g(arr, f"{p['L'][0]}{t}"), g(arr, f"{p['L'][1]}{t}"), g(arr, f"{p['L'][2]}{t}")], dtype=float)
+            R = np.array([g(arr, f"{p['R'][0]}{t}"), g(arr, f"{p['R'][1]}{t}"), g(arr, f"{p['R'][2]}{t}")], dtype=float)
+            C.append((L + R) / 2.0)
+        elif "C" in p:  # 단일 포인트
+            P = np.array([g(arr, f"{p['C'][0]}{t}"), g(arr, f"{p['C'][1]}{t}"), g(arr, f"{p['C'][2]}{t}")], dtype=float)
+            C.append(P)
+        else:
+            raise ValueError(f"PARTS['{part}'] 정의가 잘못되었습니다.")
+    C = np.vstack(C) * cm_to_m      # (10,3)
+    C = C - C[0]                    # ADD 원점 이동
+    return C
 
 # ─────────────────────── 핵심: 힘(시간반영) ───────────────────────
 def _segment_forces(C: np.ndarray, times: np.ndarray | None, mass: float = 60.0) -> np.ndarray:
     """
-    C: (9,3) m, times: (9,) sec or None
-    v_s = (C_{s+1}-C_s) / Δt_s          (s=1..8)
-    F_row1..8 = m * 0.5*(v_s + v_{s+1}) (마지막 FH2는 v_8 단독)
-    반환: (9,3) — row0(ADD)=nan, row1..8=BH..FH2
+    C: (10,3) m, times: (10,) sec or None
+    v_s = (C_{s+1}-C_s) / Δt_s          (s=1..9)
+    표용 F(0..8): 
+      - row0(ADD)=nan
+      - row1..7 = m * 0.5*(v_s + v_{s+1})  [s=1..7 → BH..IMP]
+      - row8(FH2)= m * 0.5*(v_8 + v_9)     [Finish 반영]
     """
-    n = C.shape[0]  # 9
     if times is None:
-        dt = np.ones(n-1, dtype=float)
+        dt = np.ones(9, dtype=float)   # 9 간격
     else:
         times = times.astype(float)
-        dt = np.diff(times)               # (8,)
-        # 0으로 나누는 경우 방지
+        dt = np.diff(times)            # (9,)
         dt[dt == 0] = 1.0
 
-    v = (C[1:] - C[:-1]) / dt[:, None]    # (8,3)
-    F = np.full((n, 3), np.nan, dtype=float)
-    for s in range(1, n-1):               # 1..7
+    v = (C[1:] - C[:-1]) / dt[:, None]   # (9,3) v1..v9
+
+    # 표에 쓸 9행(FRAMES와 동일)만 반환할 배열 준비
+    F = np.full((9, 3), np.nan, dtype=float)
+    # row1..7: avg(v_s, v_{s+1}) → s=1..7
+    for s in range(1, 8):               # 1..7
         v_avg = 0.5 * (v[s-1] + v[s])
         F[s] = mass * v_avg
-    F[n-1] = mass * v[-1]                 # 마지막 FH2는 v8 단독
+    # row8(FH2): avg(v8, v9)
+    F[8] = mass * 0.5 * (v[7] + v[8])
     return F
 
 # ─────────────────────── 표 생성 ───────────────────────
@@ -86,7 +103,8 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray, *, summary_mode: str = "mea
     for i, name in enumerate(FRAMES):
         r = F_r[i]; h = F_h[i]
         opp = np.sign(r) * np.sign(h) == -1
-        def mark(v, flag): return f"{fmt(v)}{' ❗' if (isinstance(flag, np.ndarray) and flag.any()) or (isinstance(flag, (bool, np.bool_)) and flag) else ''}"
+        def mark(v, flag): 
+            return f"{fmt(v)}{' ❗' if (isinstance(flag, np.ndarray) and flag.any()) or (isinstance(flag, (bool, np.bool_)) and flag) else ''}"
         rows.append([
             name,
             fmt(r[0]), fmt(r[1]), fmt(r[2]),
@@ -180,14 +198,14 @@ def build_all_tables(
     summary_mode: str = "mean",  # "mean"=예시코드, "abs_sum"=이전 규격
 ) -> ForceResult:
 
-    C_r = _center_series(pro_arr, part)
-    C_h = _center_series(ama_arr, part)
+    C_r = _center_series(pro_arr, part)   # (10,3)
+    C_h = _center_series(ama_arr, part)   # (10,3)
 
-    if times_pro is None: times_pro = extract_times(pro_arr)
-    if times_ama is None: times_ama = extract_times(ama_arr)
+    if times_pro is None: times_pro = extract_times(pro_arr)  # (10,)
+    if times_ama is None: times_ama = extract_times(ama_arr)  # (10,)
 
-    F_r = _segment_forces(C_r, times_pro, mass=mass)
-    F_h = _segment_forces(C_h, times_ama, mass=mass)
+    F_r = _segment_forces(C_r, times_pro, mass=mass)  # (9,3) — ADD..FH2
+    F_h = _segment_forces(C_h, times_ama, mass=mass)  # (9,3)
 
     main   = _mk_main_table(F_r, F_h, summary_mode=summary_mode)
     opp    = _mk_opposite_table(F_r, F_h)

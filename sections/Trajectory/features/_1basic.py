@@ -76,7 +76,7 @@ def eval_expr_base(arr: np.ndarray, expr: str) -> float:
         raise ValueError(f"허용되지 않는 식: {expr}")
     return float(eval(safe, {"__builtins__": None}, {}))
 
-    
+
 # 항목 정의: (분류, 검사명, 소스, 참조/식 또는 특수 사양)
 # 소스: "GS" | "BASE" | "SPECIAL"
 _ITEMS: list[tuple[str, str, str, object]] = [
@@ -119,7 +119,7 @@ _ITEMS: list[tuple[str, str, str, object]] = [
                                    "den": ("CA1", "CM1")}),
 
     # Club Speed at Impact
-    ("Club", "Club Speed imp",  "GS",     "DL7"),
+    ("Club", "Club Speed imp",  "BASE",     "DL7"),
 ]
 
 
