@@ -95,45 +95,45 @@ def build_gs_mixed_compare(
 
     # GS(CSV)에서 직접 읽는 항목들
     gs_items: list[tuple[str, str]] = [
-        ("H13", "H13(GS)"),
-        ("K3",  "K3(GS)"),
-        ("B17", "B17(GS)"),
-        ("B42", "B42(GS)"),
-        ("B19", "B19(GS)"),
-        ("B43", "B43(GS)"),
-        ("B13", "B13(GS)"),
-        ("B44", "B44(GS)"),
-        ("B45", "B45(GS)"),
-        ("H14", "H14(GS)"),
-        ("H18", "H18(GS)"),
-        ("B24", "B24(GS)"),
-        ("B10", "B10(GS)"),
-        ("B12", "B12(GS)"),
-        ("B14", "B14(GS)"),
-        ("B57", "B57(GS)"),
-        ("B60", "B60(GS)"),
-        ("B61", "B61(GS)"),
-        ("B62", "B62(GS)"),
+        ("H13", "1. carry(yds)"),
+        ("K3",  "2. Total Distance(m)"),
+        ("B17", "3. Club speed(mph)"),
+        ("B42", "4. Grip Speed(mph)"),
+        ("B19", "5. Ratio to Grip & Club"),
+        ("B43", "6. Grip Roll(deg/sec)"),
+        ("B13", "7. Shaft Closure rate(deg/sec)"),
+        ("B44", "8. Shaft Kick(mph)"),
+        ("B45", "9. Shaft Twist(deg) "),
+        ("H14", "10. Ball Speed(mph)"),
+        ("H18", "11. Efficiency(Smash Factor)"),
+        ("B24", "12. Loft(deg)"),
+        ("B10", "13. Attack Angle(deg)"),
+        ("B12", "14. Spin Loft(deg)"),
+        ("B14", "15. Low Point(mm)"),
+        ("B57", "16. Up/Down Path"),
+        ("B60", "Lean imp"),
+        ("B61", "Lean add"),
+        ("B62", "Lean diff"),
     ]
 
     rows: list[list] = []
     for addr, label in gs_items:
         p = g_gs(gs_pro_df, addr)
         a = g_gs(gs_ama_df, addr)
-        rows.append([label, addr, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
     # 무지개(기존)에서 계산하는 항목들
     for label, expr in [
-        ("무지개 CP1-AZ1", "CP1 - AZ1"),
-        ("무지개 CP7-AZ7", "CP7 - AZ7"),
+        ("Lean L WRI/CHD ADD", "CP1 - AZ1"),
+        ("Lean L WRI/CHD IMP", "CP7 - AZ7"),
     ]:
         try: pp = eval_expr_base(base_pro_arr, expr)
         except Exception: pp = float("nan")
         try: aa = eval_expr_base(base_ama_arr, expr)
         except Exception: aa = float("nan")
-        rows.append([label, expr, pp, aa, pp - aa])
+        rows.append([label, pp, aa, pp - aa])
 
-    return pd.DataFrame(rows, columns=["항목", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 
 # ──────────────────────────────────────────────────────────────────────
 # 디버그: 현재 바이어스로 몇 개 주소만 빠르게 확인

@@ -92,10 +92,11 @@ def build_gs_b48_b55_table(
     - 반환: columns = ["항목", "셀/식", "프로", "일반", "차이(프로-일반)"]
     """
     addrs = ["B48", "B49", "B50", "B53", "B54", "B55"]
+    label = ["Face Shaft Deflection(mm)","Face Shaft Droop(mm)","Face Shaft Deflection To Droop Ratio","Path Shaft Deflection(mm)","Path Shaft Droop(mm)"," Path Shaft Deflection To Droop Ratio"]
     rows: list[list] = []
-    for addr in addrs:
+    for addr, lbl in zip(addrs, label):
         p = g_gs(gs_pro_df, addr)
         a = g_gs(gs_ama_df, addr)
-        rows.append([f"{addr}(GS)", addr, p, a, p - a])
+        rows.append([lbl, p, a, p - a])
 
-    return pd.DataFrame(rows, columns=["항목", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
