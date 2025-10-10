@@ -5,7 +5,7 @@ import pandas as pd
 
 from .features import _1t as pos  # build_* 함수들 사용
 
-META = {"id": "setup", "title": "Setup Address", "icon": "🧭", "order": 6}
+META = {"id": "setup", "title": "4. Setup Address", "icon": "🧭", "order": 6}
 def get_metadata(): return META
 
 def run(ctx=None):

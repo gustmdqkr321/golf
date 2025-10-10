@@ -2,6 +2,7 @@
 from __future__ import annotations
 import numpy as np
 import pandas as pd
+import re
 
 # ── 공통 유틸 ────────────────────────────────────────────────────────────────
 def col_letters_to_index(letters: str) -> int:
@@ -29,15 +30,69 @@ def _fmt(rows, baseline=None, yellow=None, cols=("검사명","현재결과","식
     })
     return out
 
+GS_ROW_OFFSET = -3
+GS_COL_OFFSET = 0
+
+def set_gs_offset(row_offset: int = 0, col_offset: int = 0) -> None:
+    """런타임에서 GS 오프셋을 바꾸고 싶을 때 호출"""
+    global GS_ROW_OFFSET, GS_COL_OFFSET
+    GS_ROW_OFFSET = int(row_offset)
+    GS_COL_OFFSET = int(col_offset)
+
+# ──────────────────────────────────────────────────────────────────────
+# 공통 유틸
+# ──────────────────────────────────────────────────────────────────────
+def _col_idx(letters: str) -> int:
+    idx = 0
+    for ch in letters:
+        idx = idx * 26 + (ord(ch.upper()) - ord('A') + 1)
+    return idx - 1
+
+_CELL = re.compile(r'^([A-Za-z]+)(\d+)$')
+
+def _addr_to_rc(addr: str) -> tuple[int, int]:
+    m = _CELL.match(addr.strip())
+    if not m:
+        raise ValueError(f"잘못된 셀 주소: {addr}")
+    col = _col_idx(m.group(1))
+    row = int(m.group(2)) - 1
+    return row, col
+
+def _to_float(x) -> float:
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return float("nan")
+    s = str(x).replace(",", "").replace('"', "").replace("'", "").strip()
+    if s == "":
+        return float("nan")
+    try:
+        return float(s)
+    except Exception:
+        return float("nan")
+
+# ──────────────────────────────────────────────────────────────────────
+# GS CSV 셀 읽기(고정 바이어스만 적용)
+# ──────────────────────────────────────────────────────────────────────
+def g_gs(gs_df: pd.DataFrame, addr: str) -> float:
+    r, c = _addr_to_rc(addr)        # A1 → (0,0) 기준 좌표
+    rr = max(0, r + GS_ROW_OFFSET)  # 음수 방지
+    cc = max(0, c + GS_COL_OFFSET)
+    try:
+        return _to_float(gs_df.iat[rr, cc])
+    except Exception:
+        return float("nan")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 3.3 Early Extension (Waist Thrust X)
-def build_33_early_extension(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
+def build_33_early_extension(arr: np.ndarray,
+                             gs_df: pd.DataFrame | None = None,
+                             baseline=None, yellow=None) -> pd.DataFrame:
+    # 1/7 = (H1+K1)/2 − (H7+K7)/2  ← BASE(무지개)
     val_17 = 0.5*(g(arr,"H1")+g(arr,"K1")) - 0.5*(g(arr,"H7")+g(arr,"K7"))
-    try: gs = g(arr,"E12")
-    except Exception: gs = np.nan
+
+    gs = g_gs(gs_df, "E12") if gs_df is not None else np.nan
     rows = [
-        ("1/7", val_17, "(H1+K1)/2 − (H7+K7)/2"),
-        ("Pelvis Thrust", gs, "E12(GS)")
+        ("1/7",            val_17, "(H1+K1)/2 − (H7+K7)/2"),
+        ("Pelvis Thrust",  gs,     "E12(GS)"),
     ]
     return _fmt(rows, baseline, yellow)
 

@@ -81,5 +81,5 @@ def build_over_the_top_compare(
     )
     df["차이(프로-일반)"] = df["프로"] - df["일반"]
     # 컬럼 정리
-    df = df[["항목", "Frame", "식", "프로", "일반", "차이(프로-일반)"]]
+    df = df[["항목", "Frame", "프로", "일반", "차이(프로-일반)"]]
     return df

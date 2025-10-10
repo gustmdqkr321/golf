@@ -335,13 +335,15 @@ if not sections:
     st.stop()
 
 sections_sorted = sorted(
-    sections, key=lambda s: (s["meta"].get("order", 1000), s["meta"].get("title", s["id"]))
+    sections,
+    key=lambda s: s["meta"].get("title", s["id"])   # 타이틀 기준 정렬
 )
 
 choices = {
-    f"{s['meta'].get('icon','📁')} {s['meta'].get('title', s['id'])}": s
-    for s in sections_sorted
+    f"{s['meta'].get('title', s['id'])}": s
+    for i, s in enumerate(sections_sorted)
 }
+
 labels = list(choices.keys())
 
 # 쿼리파라미터 유지

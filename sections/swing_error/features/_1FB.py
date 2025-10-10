@@ -82,42 +82,71 @@ def build_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
     df["Δ 차(프로-일반)"] = (df["프로 Δ"] - df["일반 Δ"])
     return df
 
-
-def build_fb_report_table(arr: np.ndarray, start: int = 1, end: int = 10) -> pd.DataFrame:
+def build_fb_report_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
+                                  start: int = 1, end: int = 10) -> pd.DataFrame:
     """
-    스샷 형태의 리포트 표:
-    - Frame 1~10의 Frontal Bend(θ)와 구간 변화 Δseg(= θ_i - θ_{i-1}, frame1은 0)
-    - 아래에 섹션 합계: Backswing(1-4), Downswing(4-7), Total(1-7)
+    프레임 1~10의 Frontal Bend(θ)와 Δseg(= θ_i - θ_{i-1})를
+    프로/일반/차이로 한 표에 결합하고, 아래에 구간 합계도 함께 제공.
+
+    컬럼:
+      Frame | 프로 θ | 일반 θ | θ 차(프로-일반) | 프로 Δseg | 일반 Δseg | Δseg 차(프로-일반)
+    섹션 행(Backswing/Downswing/Total)은 θ 열은 NaN, Δseg 합계만 채움.
     """
-    # 각 프레임 절대 각(θ)
-    thetas = []
-    for r in range(start, end + 1):
-        th, _, _ = frontal_bend_angle(arr, r)  # 기존 함수 사용
-        thetas.append(float(th))
+    # 1) 단일 배열용 θ, Δseg 계산 헬퍼 (frame1의 Δseg=0.0)
+    def _thetas_deltas(arr: np.ndarray, start: int, end: int) -> tuple[list[float], list[float]]:
+        thetas: list[float] = []
+        for r in range(start, end + 1):
+            th, _, _ = frontal_bend_angle(arr, r)
+            thetas.append(float(th))
+        deltas: list[float] = [0.0]
+        for i in range(1, len(thetas)):
+            deltas.append(thetas[i] - thetas[i - 1])
+        return thetas, deltas
 
-    # 구간 변화 Δseg (frame1은 0)
-    deltas = [0.0]
-    for i in range(1, len(thetas)):
-        deltas.append(thetas[i] - thetas[i - 1])
+    p_theta, p_delta = _thetas_deltas(pro_arr, start, end)
+    a_theta, a_delta = _thetas_deltas(ama_arr, start, end)
 
+    # 2) 프레임 행 구성
     rows: list[list[object]] = []
-    for i, r in enumerate(range(start, end + 1)):
-        rows.append([r, thetas[i], deltas[i]])
+    frames = list(range(start, end + 1))
+    for i, fr in enumerate(frames):
+        rows.append([
+            fr,
+            p_theta[i], a_theta[i], (p_theta[i] - a_theta[i]),
+            p_delta[i], a_delta[i], (p_delta[i] - a_delta[i]),
+        ])
 
-    # 섹션 합계 계산 헬퍼: Δseg는 프레임 (a+1..b)의 합
-    def sum_delta(a: int, b: int) -> float:
-        i0 = (a - start) + 1              # a+1 프레임의 Δ부터
-        i1 = (b - start) + 1              # b 프레임의 Δ 직후(슬라이스 끝)
+    # 3) 섹션 합계(Δseg 합만 의미 있음)
+    def sum_delta(deltas: list[float], a: int, b: int) -> float:
+        # Δseg는 (a+1 .. b)의 합
+        i0 = (a - start) + 1
+        i1 = (b - start) + 1
         return float(sum(deltas[i0:i1]))
 
-    backswing = sum_delta(1, 4)           # Δ2..Δ4
-    downswing = sum_delta(4, 7)           # Δ5..Δ7
-    total_1_7 = sum_delta(1, 7)           # Δ2..Δ7
+    backswing_p = sum_delta(p_delta, 1, 4)
+    backswing_a = sum_delta(a_delta, 1, 4)
+    downswing_p = sum_delta(p_delta, 4, 7)
+    downswing_a = sum_delta(a_delta, 4, 7)
+    total17_p   = sum_delta(p_delta, 1, 7)
+    total17_a   = sum_delta(a_delta, 1, 7)
 
     rows.extend([
-        ["Backswing (1-4)", np.nan, backswing],
-        ["Downswing (4-7)", np.nan, downswing],
-        ["Total (1-7)",     np.nan, total_1_7],
+        ["Backswing (1-4)", np.nan, np.nan, np.nan,
+         backswing_p, backswing_a, backswing_p - backswing_a],
+        ["Downswing (4-7)", np.nan, np.nan, np.nan,
+         downswing_p, downswing_a, downswing_p - downswing_a],
+        ["Total (1-7)",     np.nan, np.nan, np.nan,
+         total17_p, total17_a, total17_p - total17_a],
     ])
 
-    return pd.DataFrame(rows, columns=["Frame", "Frontal Bend (deg)", "Frontal Bend Section (deg)"])
+    df = pd.DataFrame(rows, columns=[
+        "Frame",
+        "프로 θ", "일반 θ", "θ 차(프로-일반)",
+        "프로 Δseg", "일반 Δseg", "Δseg 차(프로-일반)",
+    ])
+
+    # 숫자 컬럼 강제 숫자화(포매팅 에러 방지)
+    for c in ["프로 θ", "일반 θ", "θ 차(프로-일반)", "프로 Δseg", "일반 Δseg", "Δseg 차(프로-일반)"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    return df

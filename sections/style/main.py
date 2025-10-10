@@ -34,7 +34,7 @@ from .features import _35force as force
 from .features import _36body as body
 from .features import _37setup_style as ss
 
-META = {"id": "swing", "title": "스타일", "icon": "🏌️", "order": 10}
+META = {"id": "swing", "title": "1. 스타일", "icon": "🏌️", "order": 10}
 def get_metadata(): return META
 
 def _to_num(x):

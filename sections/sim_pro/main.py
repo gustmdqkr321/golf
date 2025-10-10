@@ -18,7 +18,7 @@ PRO_DB_ROOT = "/Users/park_sh/Desktop/sim_pro/레퍼/driver"                    
 PRO_FILE_PATTERN = "**/first_data_transi*.xlsx"  # ← 파일명 패턴(필요시 수정)
 SAVE_DB_AS = "pros_db.npz"                     # ← 저장 파일명(선택)
 
-META = {"id": "sim", "title": "유사 프로 찾기", "icon": "🔎", "order": 15}
+META = {"id": "sim", "title": "2. 유사 프로 찾기", "icon": "🔎", "order": 15}
 def get_metadata(): return META
 
 def run(ctx=None):
