@@ -28,7 +28,7 @@ PARTS: Dict[str, Dict[str, List[str]]] = {
     "pelvis":   {"L": ["H",  "I",  "J" ], "R": ["K",  "L",  "M" ]},
     "shoulder": {"L": ["AL", "AM", "AN"], "R": ["BA", "BB", "BC"]},
     "wrist":    {"L": ["AX", "AY", "AZ"], "R": ["BM", "BN", "BO"]},
-    # 단일 포인트(클럽헤드)
+    # 단일 포인트(클럽헤드) — 좌우 동일 컬럼 사용
     "clubhead": {"L": ["CN", "CO", "CP"], "R": ["CN", "CO", "CP"]},
 }
 
@@ -49,7 +49,7 @@ def extract_times(arr: np.ndarray) -> np.ndarray:
 def _center_series(arr: np.ndarray, part: str, cm_to_m: float = 0.01) -> np.ndarray:
     """
     part이 좌/우(L/R)면 평균을, 단일(C)이면 그대로 좌표를 사용.
-    1..10 프레임(ADD~Finish), cm→m, ADD를 원점으로 평행이동(가독성용).
+    1..10 프레임(ADD~Finish), cm→m, ADD를 원점으로 평행이동.
     """
     p = PARTS[part]
     C = []
@@ -86,24 +86,21 @@ def _segment_forces(C: np.ndarray, times: np.ndarray | None, mass: float = 60.0)
 
     v = (C[1:] - C[:-1]) / dt[:, None]   # (9,3) v1..v9
 
-    # 표에 쓸 9행(FRAMES와 동일)만 반환할 배열 준비
     F = np.full((9, 3), np.nan, dtype=float)
-    # row1..7: avg(v_s, v_{s+1}) → s=1..7
     for s in range(1, 8):               # 1..7
         v_avg = 0.5 * (v[s-1] + v[s])
         F[s] = mass * v_avg
-    # row8(FH2): avg(v8, v9)
     F[8] = mass * 0.5 * (v[7] + v[8])
     return F
 
 # ─────────────────────── 표 생성 ───────────────────────
-def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray, *, summary_mode: str = "mean") -> pd.DataFrame:
-    """summary_mode: 'mean' (예시코드와 동일) | 'abs_sum' (절대합)"""
+def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
+    """요약 행은 모두 '절대값 합(abs sum)' 기준."""
     rows = []
     for i, name in enumerate(FRAMES):
         r = F_r[i]; h = F_h[i]
         opp = np.sign(r) * np.sign(h) == -1
-        def mark(v, flag): 
+        def mark(v, flag):
             return f"{fmt(v)}{' ❗' if (isinstance(flag, np.ndarray) and flag.any()) or (isinstance(flag, (bool, np.bool_)) and flag) else ''}"
         rows.append([
             name,
@@ -111,9 +108,8 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray, *, summary_mode: str = "mea
             mark(h[0], opp[0]), mark(h[1], opp[1]), mark(h[2], opp[2]),
             fmt(abs(r[0]-h[0])), fmt(abs(r[1]-h[1])), fmt(abs(r[2]-h[2])),
         ])
-    df = pd.DataFrame(rows, columns=["Frame","Rory_X","Rory_Y","Rory_Z","Hong_X","Hong_Y","Hong_Z","Diff_X","Diff_Y","Diff_Z"])
+    df = pd.DataFrame(rows, columns=["Frame","pro_X","pro_Y","pro_Z","ama_X","ama_Y","ama_Z","Diff_X","Diff_Y","Diff_Z"])
 
-    # 요약 행 계산
     idx = {name:i for i,name in enumerate(FRAMES)}
     segs = {
         "요약 1-4": [idx["BH"], idx["BH2"], idx["TOP"]],
@@ -121,19 +117,16 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray, *, summary_mode: str = "mea
         "요약 7-9": [idx["FH1"], idx["FH2"]],
     }
 
-    def summarize(rows_idx: List[int]) -> List[str]:
-        R = F_r[rows_idx]; H = F_h[rows_idx]
-        if summary_mode == "mean":
-            r_sum = np.nanmean(R, axis=0); h_sum = np.nanmean(H, axis=0)
-        else:  # abs_sum
-            r_sum = np.nansum(np.abs(R), axis=0); h_sum = np.nansum(np.abs(H), axis=0)
-        d_sum = np.abs(r_sum - h_sum)
-        return [fmt(r_sum[0]), fmt(r_sum[1]), fmt(r_sum[2]),
-                fmt(h_sum[0]), fmt(h_sum[1]), fmt(h_sum[2]),
-                fmt(d_sum[0]), fmt(d_sum[1]), fmt(d_sum[2])]
+    def abs_sum_rows(rows_idx: List[int]) -> List[str]:
+        R = np.nansum(np.abs(F_r[rows_idx]), axis=0)
+        H = np.nansum(np.abs(F_h[rows_idx]), axis=0)
+        D = np.abs(R - H)
+        return [fmt(R[0]), fmt(R[1]), fmt(R[2]),
+                fmt(H[0]), fmt(H[1]), fmt(H[2]),
+                fmt(D[0]), fmt(D[1]), fmt(D[2])]
 
     for title, idxs in segs.items():
-        df.loc[len(df)] = [title] + summarize(idxs)
+        df.loc[len(df)] = [title] + abs_sum_rows(idxs)
 
     # 부호반대비율(요약 제외, BH..FH2의 8행×3축)
     total = 0; opposite = 0
@@ -147,14 +140,11 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray, *, summary_mode: str = "mea
     ratio = (opposite/total) if total else 0.0
     df.loc[len(df)] = ["부호반대비율", fmt(ratio), "", "", "", "", "", "", "", ""]
 
-    # 요청: 1-7, 1-9는 "절대값 합" 고정
+    # 고정 요약(절대합): 1-7, 1-9
     seg_1_7 = [idx["BH"], idx["BH2"], idx["TOP"], idx["TR"], idx["DH"], idx["IMP"]]
     seg_1_9 = seg_1_7 + [idx["FH1"], idx["FH2"]]
-    def abs_sum(idxs):
-        R = np.nansum(np.abs(F_r[idxs]), axis=0); H = np.nansum(np.abs(F_h[idxs]), axis=0); D = np.abs(R-H)
-        return [fmt(R[0]), fmt(R[1]), fmt(R[2]), fmt(H[0]), fmt(H[1]), fmt(H[2]), fmt(D[0]), fmt(D[1]), fmt(D[2])]
-    df.loc[len(df)] = ["1-7"] + abs_sum(seg_1_7)
-    df.loc[len(df)] = ["1-9"] + abs_sum(seg_1_9)
+    df.loc[len(df)] = ["1-7"] + abs_sum_rows(seg_1_7)
+    df.loc[len(df)] = ["1-9"] + abs_sum_rows(seg_1_9)
     return df
 
 def _mk_opposite_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
@@ -167,8 +157,8 @@ def _mk_opposite_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
             if np.sign(r) * np.sign(h) == -1:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","Rory","Hong","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","Rory","Hong","|Diff|"])
+        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
+    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
               .sort_values("|Diff|", ascending=False, ignore_index=True))
 
 def _mk_same_top3(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
@@ -181,8 +171,8 @@ def _mk_same_top3(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
             if np.sign(r) * np.sign(h) >= 0:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","Rory","Hong","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","Rory","Hong","|Diff|"])
+        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
+    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
               .sort_values("|Diff|", ascending=False, ignore_index=True)
               .head(3))
 
@@ -195,9 +185,10 @@ def build_all_tables(
     mass: float = 60.0,
     times_pro: np.ndarray | None = None,
     times_ama: np.ndarray | None = None,
-    summary_mode: str = "mean",  # "mean"=예시코드, "abs_sum"=이전 규격
 ) -> ForceResult:
-
+    """
+    요약은 전부 '절대값 합(abs sum)' 기준으로 계산됩니다.
+    """
     C_r = _center_series(pro_arr, part)   # (10,3)
     C_h = _center_series(ama_arr, part)   # (10,3)
 
@@ -207,7 +198,7 @@ def build_all_tables(
     F_r = _segment_forces(C_r, times_pro, mass=mass)  # (9,3) — ADD..FH2
     F_h = _segment_forces(C_h, times_ama, mass=mass)  # (9,3)
 
-    main   = _mk_main_table(F_r, F_h, summary_mode=summary_mode)
+    main   = _mk_main_table(F_r, F_h)   # ← abs_sum 고정
     opp    = _mk_opposite_table(F_r, F_h)
     same3  = _mk_same_top3(F_r, F_h)
     return ForceResult(main, opp, same3)

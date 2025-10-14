@@ -81,19 +81,19 @@ def build_face_angle_table(
     columns = ["항목", "셀/식", "프로", "일반", "차이(프로-일반)"]
     """
     items: list[tuple[str, str, str]] = [
-        ("B11(GS)",                "B11",                               "GS"),
-        ("B38(GS)",                "B38",                               "GS"),
-        ("CP1-CS1",                "CP1 - CS1",                         "BASE"),
-        ("B36(GS)",                "B36",                               "GS"),
-        ("CP7-CS7",                "CP7 - CS7",                         "BASE"),
-        ("B39(GS)",                "B39",                               "GS"),
-        ("(CP7-CS7)-(CP1-CS1)",    "(CP7 - CS7) - (CP1 - CS1)",         "BASE"),
-        ("B32(GS)",                "B32",                               "GS"),
-        ("B33(GS)",                "B33",                               "GS"),
-        ("B31(GS)",                "B31",                               "GS"),
-        ("AY1-BN1",                "AY1 - BN1",                         "BASE"),
-        ("AY7-BN7",                "AY7 - BN7",                         "BASE"),
-        ("무지개 CP7-AZ7",          "CP7 - AZ7",                         "BASE"),
+        ("Face to Path",                "B11",                               "GS"),
+        ("Face angle / add(deg)",                "B38",                               "GS"),
+        ("Face angle / add(mm)",                "CP1 - CS1",                         "BASE"),
+        ("Face angle / imp(deg)",                "B36",                               "GS"),
+        ("Face angle / imp(mm)",                "CP7 - CS7",                         "BASE"),
+        ("Face angle / add/imp(deg)",                "B39",                               "GS"),
+        ("Face angle / add/imp(mm)",    "(CP7 - CS7) - (CP1 - CS1)",         "BASE"),
+        ("Lie/add",                "B32",                               "GS"),
+        ("Lie/imp",                "B33",                               "GS"),
+        ("Lie/mm",                "B31",                               "GS"),
+        ("Grip/add",                "AY1 - BN1",                         "BASE"),
+        ("Grip/imp",                "AY7 - BN7",                         "BASE"),
+        ("Hand Position at imp",          "CP7 - AZ7",                         "BASE"),
     ]
 
     rows: list[list] = []

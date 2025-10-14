@@ -214,7 +214,8 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
                            pro_label: str = "Pro", ama_label: str = "Ama") -> pd.DataFrame:
     """
     구간별(1-4, 4-7, 7-10, Total)로 Pro/Ama 각각에 대해
-    [무릎, 골반, 어깨, 머리] 절대 이동량의 합이 100%가 되도록 비율 계산.
+    [무릎, 골반, 어깨, 머리] 절대 이동량 비율을 계산하고,
+    반올림(소수 둘째자리) 이후에도 '합계=100.00%'가 정확히 되도록 보정한다.
     """
     # 1) 부위별 이동 테이블 생성
     tables = {
@@ -225,10 +226,10 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
     }
     segments = ["1-4", "4-7", "7-10", "Total"]
     labels   = [pro_label, ama_label]
+    parts    = ["무릎", "골반", "어깨", "머리"]
 
-    # 2) 구간·부위·사람별 절대이동량 수집 (분모 계산용)
-    #    abs_sum[seg][label] = 해당 구간에서 4부위 절대이동량의 총합
-    abs_vals = {seg: {part: {lbl: 0.0 for lbl in labels} for part in tables.keys()} for seg in segments}
+    # 2) 구간·부위·사람별 절대이동량 수집
+    abs_vals = {seg: {part: {lbl: 0.0 for lbl in labels} for part in parts} for seg in segments}
     abs_sum  = {seg: {lbl: 0.0 for lbl in labels} for seg in segments}
 
     for seg in segments:
@@ -243,28 +244,54 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
                     keys = [f"{i}-{i+1}" for i in range(a, b)]
                     acc = 0.0
                     for ax in ["X", "Y", "Z"]:
+                        # 일부 셀에 '!' 같은 표식이 있다면 제거
                         ser = df.loc[keys, f"Δ{ax}_{lbl}"].astype(str).str.rstrip("!").astype(float)
                         acc += float(ser.abs().sum())
                     val = acc
                 abs_vals[seg][part][lbl] = float(val)
                 abs_sum[seg][lbl] += float(val)
 
-    # 3) 비율(%) 계산: part_abs / sum_abs * 100
+    # 3) 비율(%) 계산 + 반올림 보정(합계=100.00)
     rows = []
     for seg in segments:
         row = {"구간": seg}
-        for part in ["무릎", "골반", "어깨", "머리"]:
-            for lbl in labels:
-                denom = abs_sum[seg][lbl]
-                num   = abs_vals[seg][part][lbl]
-                pct   = (num / denom * 100) if denom not in (0.0, -0.0) else float("nan")
-                row[f"{part} 이동비율({lbl},%)"] = round(pct, 2)
+        for lbl in labels:
+            denom = abs_sum[seg][lbl]
+
+            # 분모가 0이면 전부 NaN
+            if denom == 0.0:
+                for part in parts:
+                    row[f"{part} 이동비율({lbl},%)"] = float("nan")
+                continue
+
+            # (a) 소수점 2자리 반올림 전 비율
+            raw = {part: (abs_vals[seg][part][lbl] / denom * 100.0) for part in parts}
+            # (b) 두 자리 반올림
+            rounded = {part: round(raw[part], 2) for part in parts}
+            # (c) 합 보정: 100.00 - 합계 차이를 최대 잔여(remainder) 가진 항목에 더함
+            sum_rounded = sum(rounded.values())
+            diff = round(100.0 - sum_rounded, 2)  # diff는 -0.01 ~ +0.01 등 미세오차 가능
+
+            if abs(diff) >= 0.01:  # 의미 있는 오차일 때만 보정
+                # 각 항목의 소수점 아래 잔여(반올림 전 → 반올림 후)
+                remainders = {part: (raw[part] - rounded[part]) for part in parts}
+                # diff>0이면 소수부가 큰(내림에 가까운) 항목에 더하고, diff<0이면 소수부가 작은(올림에 가까운) 항목에서 뺀다
+                target_part = max(remainders, key=remainders.get) if diff > 0 else min(remainders, key=remainders.get)
+                rounded[target_part] = round(rounded[target_part] + diff, 2)
+
+            # 최종 기록
+            for part in parts:
+                row[f"{part} 이동비율({lbl},%)"] = rounded[part]
+
+            # 혹시라도 수치 안정용으로 마지막에 한 번 더 재합 보정(안전장치)
+            # (여기서는 최대 0.01 오차 정도만 남을 수 있는데, 표시는 그대로 둔다)
+
         rows.append(row)
 
-    # 4) 출력 컬럼 순서 정리
+    # 4) 출력 컬럼 순서
     cols = ["구간"]
-    for part in ["무릎", "골반", "어깨", "머리"]:
+    for part in parts:
         for lbl in labels:
             cols.append(f"{part} 이동비율({lbl},%)")
 
-    return pd.DataFrame(rows)[cols] 
+    return pd.DataFrame(rows)[cols]

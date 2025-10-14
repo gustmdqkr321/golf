@@ -29,7 +29,7 @@ def eval_expr(arr: np.ndarray, expr: str) -> float:
 
 # ── 1) 단일 항목: BC4 - BC1 ───────────────────────────────────────────────
 def build_bc4_minus_bc1_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
-    label = "BC4 − BC1"
+    label = "B1/4 R SHO Z"
     expr  = "BC4 - BC1"
     try: p = eval_expr(pro_arr, expr)
     except Exception: p = float("nan")
@@ -48,14 +48,14 @@ def build_ax_cn_group_6_2_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
       8) (CP6-AZ6)-(CP2-AZ2)
     """
     items = [
-        ("AX6 − AX2",                  "AX6 - AX2"),
-        ("AZ6 − AZ2",                  "AZ6 - AZ2"),
-        ("CN6 − CN2",                  "CN6 - CN2"),
-        ("CO6 − CO2",                  "CO6 - CO2"),
-        ("CP6 − CP2",                  "CP6 - CP2"),
-        ("(CN6−AX6) − (CN2−AX2)",     "(CN6-AX6) - (CN2-AX2)"),
-        ("(CO6−AY6) − (CO2−AY2)",     "(CO6-AY6) - (CO2-AY2)"),
-        ("(CP6−AZ6) − (CP2−AZ2)",     "(CP6-AZ6) - (CP2-AZ2)"),
+        ("2/6 L WRI x",                  "AX6 - AX2"),
+        ("2/6 L WRI z",                  "AZ6 - AZ2"),
+        ("2/6 CLUB x",                  "CN6 - CN2"),
+        ("2/6 CLUB y",                  "CO6 - CO2"),
+        ("2/6 CLUB z",                  "CP6 - CP2"),
+        ("2/6 : WRI/CHD x",     "(CN6-AX6) - (CN2-AX2)"),
+        ("2/6 : WRI/CHD y",     "(CO6-AY6) - (CO2-AY2)"),
+        ("2/6 : WRI/CHD z",     "(CP6-AZ6) - (CP2-AZ2)"),
     ]
     rows = []
     for label, expr in items:

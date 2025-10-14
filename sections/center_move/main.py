@@ -1,3 +1,4 @@
+# sections/center_move/main.py
 from __future__ import annotations
 import streamlit as st
 import numpy as np
@@ -8,7 +9,65 @@ from .features import _2center_move as move
 from .features import _3total_move as zmove
 from .features import _4speed as speed
 
-META = {"id": "center_move", "title": "Center Move", "icon": "🎯", "order": 41}
+# ─────────────────────────────────────────────────────────────────────
+# 마스터 합본용 세션 저장소
+# {section_id: {"title": str, "tables": dict[str, DataFrame]}}
+# ─────────────────────────────────────────────────────────────────────
+if "section_tables" not in st.session_state:
+    st.session_state["section_tables"] = {}
+
+def register_section(section_id: str, section_title: str, tables: dict[str, pd.DataFrame]):
+    st.session_state["section_tables"][section_id] = {
+        "title": section_title,
+        "tables": tables,
+    }
+
+# (엑셀) 한 섹션=한 시트로 내보내기 유틸
+import io, re
+from datetime import datetime
+
+def _safe_sheet(name: str, used: set[str]) -> str:
+    s = re.sub(r'[\\/\?\*\[\]\:\'"]', '', str(name)).strip()
+    s = (s or "Sheet").replace(' ', '_')[:31]
+    base, i = s, 1
+    while s in used:
+        suf = f"_{i}"
+        s = (base[:31-len(suf)] if len(base) > 31-len(suf) else base) + suf
+        i += 1
+    used.add(s)
+    return s
+
+def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[str, pd.DataFrame]):
+    """섹션 내부 여러 표를 한 시트에 제목+표 형태로 세로로 연속 기록"""
+    wb = writer.book
+    num_fmt    = wb.add_format({'num_format': '0.00'})
+    title_fmt  = wb.add_format({'bold': True, 'font_size': 12})
+    header_fmt = wb.add_format({'bold': True, 'bg_color': '#F2F2F2', 'border': 1})
+
+    # 시트 핸들 확보
+    pd.DataFrame().to_excel(writer, sheet_name=sheet_name, index=False)
+    ws = writer.sheets[sheet_name]
+
+    cur_row = 0
+    for name, df in tables.items():
+        # 제목
+        ws.write(cur_row, 0, str(name), title_fmt)
+        cur_row += 1
+
+        # 표
+        df.to_excel(writer, sheet_name=sheet_name, startrow=cur_row, startcol=0, index=False, header=True)
+
+        # 헤더/숫자 포맷 + 열 너비
+        n_rows, n_cols = df.shape
+        for c in range(n_cols):
+            ws.write(cur_row, c, df.columns[c], header_fmt)
+        ws.set_column(0, max(0, n_cols-1), 14, num_fmt)
+
+        # 다음 표 위치: 본문 n_rows + 헤더 1 + 여백 2
+        cur_row += n_rows + 1 + 2
+
+
+META = {"id": "center_move", "title": "10. Center Move", "icon": "🎯", "order": 41}
 def get_metadata(): return META
 
 def run(ctx=None):
@@ -21,19 +80,26 @@ def run(ctx=None):
     if pro_arr is None or ama_arr is None:
         st.warning("무지개(베이직) 엑셀 두 개(프로/일반)가 필요합니다."); return
 
+    # ─────────────────────────────────────────────────────────────
+    # 1) 화면 표 생성 & 수집
+    # ─────────────────────────────────────────────────────────────
+    tables: dict[str, pd.DataFrame] = {}
 
     # 1) SMDI / MRMI
     st.markdown("### SMDI / MRMI")
     smdi = feat.build_smdi_mrmi_table(pro_arr, ama_arr, "Pro", "Ama")
-    st.dataframe(smdi.style.format({"SMDI":"{:.2f}","MRMI X":"{:.2f}","MRMI Y":"{:.2f}","MRMI Z":"{:.2f}"}),
-                 use_container_width=True)
-
+    st.dataframe(
+        smdi.style.format({"SMDI":"{:.2f}","MRMI X":"{:.2f}","MRMI Y":"{:.2f}","MRMI Z":"{:.2f}"}),
+        use_container_width=True
+    )
+    tables["SMDI_MRMI"] = smdi
 
     # 2) ΔX
     st.markdown("### ΔX (COM vs BaseX)")
     dx = feat.build_delta_x_table(pro_arr, ama_arr)
     st.dataframe(dx.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
+    tables["Delta_X_COM_vs_BaseX"] = dx
 
     st.divider()
 
@@ -42,6 +108,7 @@ def run(ctx=None):
     dy = feat.build_delta_y_table(pro_arr, ama_arr)
     st.dataframe(dy.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
+    tables["Delta_Y_COM_Height"] = dy
 
     st.divider()
 
@@ -50,6 +117,7 @@ def run(ctx=None):
     dz = feat.build_delta_z_table(pro_arr, ama_arr)
     st.dataframe(dz.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
+    tables["Delta_Z_Laterality"] = dz
 
     st.divider()
 
@@ -60,66 +128,100 @@ def run(ctx=None):
                  use_container_width=True)
     st.download_button("CSV 내려받기 (Summary)", sm.to_csv(index=False).encode("utf-8-sig"),
                        "center_move_summary.csv", "text/csv", key="cm_summary")
+    tables["Summary_Segments_Totals"] = sm
 
-
-    # ... run(ctx) 내부, 기존 표들 아래에 추가 --------------------------------
+    # ── Part Movement ────────────────────────────────────────────
     st.divider()
     st.subheader("Part Movement (Δ between frames)")
 
     st.markdown("**Knee**")
     knee = move.build_movement_table_knee(pro_arr, ama_arr)
     st.dataframe(knee, use_container_width=True)
+    tables["PartMovement_Knee"] = knee
 
     st.markdown("**Hips**")
     hips = move.build_movement_table_hips(pro_arr, ama_arr)
     st.dataframe(hips, use_container_width=True)
+    tables["PartMovement_Hips"] = hips
 
     st.markdown("**Shoulder**")
     sho = move.build_movement_table_shoulder(pro_arr, ama_arr)
     st.dataframe(sho, use_container_width=True)
+    tables["PartMovement_Shoulder"] = sho
 
     st.markdown("**Head**")
     head = move.build_movement_table_head(pro_arr, ama_arr)
     st.dataframe(head, use_container_width=True)
+    tables["PartMovement_Head"] = head
 
+    # ── Total Move / Ratio ───────────────────────────────────────
     st.divider()
     st.subheader("Total Move (abs sum)")
     tm = move.build_total_move(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tm.style.format({c:"{:.2f}" for c in tm.columns if c!="구간"}), use_container_width=True)
+    tables["Total_Move_abs_sum"] = tm
 
     st.divider()
     st.subheader("Move Ratio (%)")
     tr = move.build_total_move_ratio(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tr.style.format({c:"{:.2f}" for c in tr.columns if c!="구간"}), use_container_width=True)
+    tables["Move_Ratio_percent"] = tr
 
+    # ── 1-10 Abs Move & X/Y Report ───────────────────────────────
     st.divider()
     st.subheader("1-10 Abs Move (Σ|Δ|)")
     dfz = zmove.build_z_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfz, use_container_width=True)
+    tables["AbsMove_1_10_SumAbsDelta"] = dfz
 
     st.divider()
     st.markdown("### X Report")
     dfx = zmove.build_x_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfx, use_container_width=True)
+    tables["X_Report"] = dfx
 
     st.divider()
     st.markdown("### Y Report")
     dfy = zmove.build_y_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfy, use_container_width=True)
+    tables["Y_Report"] = dfy
 
-    # 프레임별 상세(원래 표)
+    # ── Tilt / Speed ─────────────────────────────────────────────
     st.subheader("Tilt Report (per frame)")
     df_tilt = speed.compute_tilt_report(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_tilt, use_container_width=True)
+    tables["Tilt_Report_per_frame"] = df_tilt
 
     st.divider()
     st.subheader("Δθ Summary (Σ over segments)")
     df_delta = speed.build_tilt_delta_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_delta.style.format({c:"{:.2f}" for c in df_delta.columns if c!="구간"}),
                  use_container_width=True)
+    tables["DeltaTheta_Summary_sum_segments"] = df_delta
 
     st.divider()
     st.subheader("Speed Summary (avg over segments)")
     df_speed = speed.build_tilt_speed_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_speed.style.format({c:"{:.2f}" for c in df_speed.columns if c!="구간"}),
                  use_container_width=True)
+    tables["Speed_Summary_avg_segments"] = df_speed
+
+    # ─────────────────────────────────────────────────────────────
+    # 2) 섹션 단일 시트 엑셀 다운로드 + 마스터 합본 등록
+    # ─────────────────────────────────────────────────────────────
+    xbuf = io.BytesIO()
+    with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
+        _write_section_sheet(writer, "Center_Move", tables)
+    xbuf.seek(0)
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    st.download_button(
+        "📦 Excel 다운로드 – Center Move (단일 시트)",
+        data=xbuf.getvalue(),
+        file_name=f"center_move_all_in_one_{stamp}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    # 마스터 합본(app.py)에서 섹션별 시트로 모을 수 있도록 등록
+    register_section(META["id"], META["title"], tables)

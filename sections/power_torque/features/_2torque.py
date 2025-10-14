@@ -24,19 +24,18 @@ def fmt(x) -> str:
 
 # ─────────────────────────── 정의 ───────────────────────────
 # 토크용 파트 정의: center(좌/우 3축), target(좌/우 3축)
-#   무릎:   center=발목(BY,BZ,CA / CK,CL,CM),  target=무릎(BP,BQ,BR / CB,CC,CD)
-#   골반:   center=무릎(...),                  target=골반(H,I,J / K,L,M)
-#   어깨:   center=골반(...),                  target=어깨(AL,AM,AN / BA,BB,BC)
 PARTS_TORQUE: Dict[str, Dict[str, List[str]]] = {
+    # center=발목, target=무릎
     "knee":     { "center": ["BY","BZ","CA","CK","CL","CM"], "target": ["BP","BQ","BR","CB","CC","CD"] },
+    # center=무릎, target=골반
     "pelvis":   { "center": ["BP","BQ","BR","CB","CC","CD"], "target": ["H","I","J","K","L","M"]       },
+    # center=골반, target=어깨
     "shoulder": { "center": ["H","I","J","K","L","M"],       "target": ["AL","AM","AN","BA","BB","BC"] },
-    
 }
 
-# 표 라벨(ADD는 계산용 시간/좌표에만 쓰고 표는 BH..FH2 9행)
+# 표 라벨
 FRAMES = ["BH","BH2","TOP","TR","DH","IMP","FH1","FH2"]
-FRAMES_FULL = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]  # 표 첫 줄에 ADD는 안 씀, 내부 인덱싱용
+FRAMES_FULL = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
 
 @dataclass
 class TorqueResult:
@@ -52,7 +51,7 @@ def extract_times_10(arr: np.ndarray) -> np.ndarray:
 def _series_LR_mean(arr: np.ndarray, cols6: List[str], t_from=1, t_to=10, cm_to_m: float = 0.01) -> np.ndarray:
     """
     cols6: [Lx, Ly, Lz, Rx, Ry, Rz], t_from..t_to inclusive
-    반환: (t_len, 3)  (좌/우 평균, cm→m, ADD 원점 이동 아님 — 토크 r에 원점이 필요없음)
+    반환: (t_len, 3)  (좌/우 평균, cm→m)
     """
     Lx,Ly,Lz, Rx,Ry,Rz = cols6
     data = []
@@ -69,25 +68,25 @@ def _torque_series(center: np.ndarray, target: np.ndarray, times10: np.ndarray, 
     v_s = (target_{s+1}-target_s)/Δt_s,  s=1..9
     F_s = m * v_s
     r_s = target_s - center_s
-    τ_s = r_s × F_s    → (9,3)  [BH..FH2]
+    τ_s = r_s × F_s    → (9,3)  [BH..FIN]
     """
-    # 안전한 Δt
-    dt = np.diff(times10)  # (9,)
+    dt = np.diff(times10)           # (9,)
     dt[dt == 0] = 1.0
 
     v = (target[1:] - target[:-1]) / dt[:, None]  # (9,3)
     F = mass * v                                   # (9,3)
-    r = (target[:-1] - center[:-1])                # (9,3), 시작 프레임 기준
+    r = (target[:-1] - center[:-1])                # (9,3)
     tau = np.cross(r, F)                           # (9,3)
     return tau
 
 # ─────────────────────── 표 생성 ───────────────────────
-def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray, *, summary_mode: str = "mean") -> pd.DataFrame:
+def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
     """
-    T_r/T_h: (9,3) — BH..Finish
+    T_r/T_h: (9,3) — BH..FIN
+    요약은 모두 '절대값 합(abs sum)' 기준.
     """
     rows = []
-    frame_labels = FRAMES_FULL[1:]  # BH..Finish (9개)
+    frame_labels = FRAMES_FULL[1:]  # BH..FIN (9개)
     for i, name in enumerate(frame_labels):
         r = T_r[i]; h = T_h[i]
         opp = np.sign(r) * np.sign(h) == -1
@@ -101,29 +100,26 @@ def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray, *, summary_mode: str = 
         ])
     df = pd.DataFrame(
         rows,
-        columns=["Frame","Rory_X","Rory_Y","Rory_Z","Hong_X","Hong_Y","Hong_Z","Diff_X","Diff_Y","Diff_Z"]
+        columns=["Frame","pro_X","pro_Y","pro_Z","ama_X","ama_Y","ama_Z","Diff_X","Diff_Y","Diff_Z"]
     )
 
-    # 요약 구간도 Finish까지 반영 (각 3개 구간)
+    # 요약 구간(절대합): BH~TOP / TR~IMP / FH1~FIN
     segs = {
         "요약 1-4": [0,1,2],    # BH, BH2, TOP
         "요약 4-7": [3,4,5],    # TR, DH, IMP
-        "요약 7-10": [6,7,8],   # FH1, FH2, Finish
+        "요약 7-10": [6,7,8],   # FH1, FH2, FIN
     }
-    def summarize(idxs: List[int]) -> List[str]:
-        R = T_r[idxs]; H = T_h[idxs]
-        if summary_mode == "mean":
-            r_sum = np.nanmean(R, axis=0); h_sum = np.nanmean(H, axis=0)
-        else:
-            r_sum = np.nansum(np.abs(R), axis=0); h_sum = np.nansum(np.abs(H), axis=0)
-        d_sum = np.abs(r_sum - h_sum)
-        return [fmt(r_sum[0]), fmt(r_sum[1]), fmt(r_sum[2]),
-                fmt(h_sum[0]), fmt(h_sum[1]), fmt(h_sum[2]),
-                fmt(d_sum[0]), fmt(d_sum[1]), fmt(d_sum[2])]
+    def abs_sum_rows(idxs: List[int]) -> List[str]:
+        R = np.nansum(np.abs(T_r[idxs]), axis=0)
+        H = np.nansum(np.abs(T_h[idxs]), axis=0)
+        D = np.abs(R - H)
+        return [fmt(R[0]), fmt(R[1]), fmt(R[2]),
+                fmt(H[0]), fmt(H[1]), fmt(H[2]),
+                fmt(D[0]), fmt(D[1]), fmt(D[2])]
     for title, idxs in segs.items():
-        df.loc[len(df)] = [title] + summarize(idxs)
+        df.loc[len(df)] = [title] + abs_sum_rows(idxs)
 
-    # 부호반대비율 (BH..Finish 9행×3축)
+    # 부호반대비율 (BH..FIN 9행×3축)
     total = 0; opposite = 0
     for i in range(0, 9):
         r = T_r[i]; h = T_h[i]
@@ -138,7 +134,7 @@ def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray, *, summary_mode: str = 
 
 def _mk_opposite_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
     rows = []
-    frame_labels = FRAMES_FULL[1:]  # BH..FH2
+    frame_labels = FRAMES_FULL[1:]  # BH..FIN
     for i, name in enumerate(frame_labels):
         for axis, ax_name in enumerate(["X","Y","Z"]):
             r, h = T_r[i,axis], T_h[i,axis]
@@ -146,13 +142,13 @@ def _mk_opposite_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
             if np.sign(r) * np.sign(h) == -1:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","Rory","Hong","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","Rory","Hong","|Diff|"])
+        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
+    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
               .sort_values("|Diff|", ascending=False, ignore_index=True))
 
 def _mk_same_top3_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
     rows = []
-    frame_labels = FRAMES_FULL[1:]
+    frame_labels = FRAMES_FULL[1:]  # BH..FIN
     for i, name in enumerate(frame_labels):
         for axis, ax_name in enumerate(["X","Y","Z"]):
             r, h = T_r[i,axis], T_h[i,axis]
@@ -160,8 +156,8 @@ def _mk_same_top3_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
             if np.sign(r) * np.sign(h) >= 0:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","Rory","Hong","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","Rory","Hong","|Diff|"])
+        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
+    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
               .sort_values("|Diff|", ascending=False, ignore_index=True)
               .head(3))
 
@@ -172,8 +168,10 @@ def build_torque_tables(
     *,
     part: str = "knee",        # "knee" | "pelvis" | "shoulder"
     mass: float = 60.0,
-    summary_mode: str = "mean" # "mean" | "abs_sum"
 ) -> TorqueResult:
+    """
+    요약은 전부 '절대값 합(abs sum)' 기준으로 계산됩니다.
+    """
     if part not in PARTS_TORQUE:
         raise ValueError(f"지원하지 않는 part: {part} (knee|pelvis|shoulder)")
 
@@ -186,11 +184,11 @@ def build_torque_tables(
     center_a = _series_LR_mean(ama_arr, spec["center"], 1, 10)
     target_a = _series_LR_mean(ama_arr, spec["target"], 1, 10)
 
-    # τ(토크) 시리즈 (BH..FH2 9행)
+    # τ(토크) 시리즈 (BH..FIN 9행)
     T_p = _torque_series(center_p, target_p, times_p, mass)
     T_a = _torque_series(center_a, target_a, times_a, mass)
 
-    main   = _mk_main_table_tau(T_p, T_a, summary_mode=summary_mode)
+    main   = _mk_main_table_tau(T_p, T_a)   # ← abs sum 고정
     opp    = _mk_opposite_table_tau(T_p, T_a)
     same3  = _mk_same_top3_tau(T_p, T_a)
     return TorqueResult(main, opp, same3)

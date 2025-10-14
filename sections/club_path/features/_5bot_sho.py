@@ -75,6 +75,6 @@ def build_midpoint_tables(pro_arr: np.ndarray, ama_arr: np.ndarray) -> tuple[pd.
       - df1: (AR+BG)/2 − (AL+BA)/2 (단, 1·7프레임은 AT/BI, AN/BC)
       - df2: (AX+BM)/2 − (AL+BA)/2 (단, 1·7프레임은 AZ/BO, AN/BC)
     """
-    df1 = _build_compare(pro_arr, ama_arr, _MAP_1, title="중간값차-세트1")
-    df2 = _build_compare(pro_arr, ama_arr, _MAP_2, title="중간값차-세트2")
+    df1 = _build_compare(pro_arr, ama_arr, _MAP_1, title="")
+    df2 = _build_compare(pro_arr, ama_arr, _MAP_2, title="")
     return df1, df2

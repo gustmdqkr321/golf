@@ -91,6 +91,6 @@ def build_cn_ax_1_10_table(base_pro_arr, base_ama_arr) -> pd.DataFrame:
             a = float(eval_expr_base(base_ama_arr, expr))
         except Exception:
             a = float("nan")
-        rows.append([label, expr, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
-    return pd.DataFrame(rows, columns=["항목", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
