@@ -19,16 +19,17 @@ def g(arr: np.ndarray, code: str) -> float:
 def _fmt(rows, baseline=None, yellow=None, cols=("검사명","현재결과","식")) -> pd.DataFrame:
     baseline = baseline or {}
     yellow   = yellow   or {}
-    df = pd.DataFrame(rows, columns=list(cols))
-    # 표 형식: 검사명 / 현재결과 / 종전결과 / Yellow
+
+    df_in = pd.DataFrame(rows, columns=list(cols))
     out = pd.DataFrame({
-        "검사명": df["검사명"],
-        "현재결과": df["현재결과"],
-        "종전결과": [baseline.get(k, np.nan) for k in df["검사명"]],
-        "Yellow":   [yellow.get(k, "")        for k in df["검사명"]],
-        "식": df.get("식", pd.Series([""]*len(df))),
+        "검사명": df_in["검사명"],
+        "현재결과": df_in["현재결과"],
     })
+    out.insert(0, "seg", out["검사명"])       # ← seg 보장
+    out.set_index("검사명", drop=False, inplace=True)  # 인덱스
     return out
+
+
 
 GS_ROW_OFFSET = -3
 GS_COL_OFFSET = 0

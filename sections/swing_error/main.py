@@ -10,6 +10,26 @@ from .features import _5Trust as TR
 from .features import _6OTT as OTT
 from .features import _7Trust2 as TR2
 
+
+
+# 공용 헬퍼 (어딘가 공통 utils나 해당 main 위쪽에)
+def _insert_index_column(df: pd.DataFrame, col_name: str = "seg") -> pd.DataFrame:
+    out = df.copy()
+    # 인덱스 → 문자열로 안전 변환 (MultiIndex도 처리)
+    if isinstance(out.index, pd.MultiIndex):
+        idx_series = out.index.map(lambda t: " | ".join(map(str, t)))
+    else:
+        idx_series = out.index.astype(str)
+    # 맨 앞에 삽입 후, RangeIndex로 리셋
+    out.insert(0, col_name, idx_series)
+    out.reset_index(drop=True, inplace=True)
+    return out
+
+def combine_with_index(builder, pro_arr, ama_arr, idx_col: str = "seg") -> pd.DataFrame:
+    df = combine_pro_ama_table(builder, pro_arr, ama_arr)
+    return _insert_index_column(df, idx_col)
+
+
 # utils/excel_export.py (같은 파일 상단에 둬도 OK)
 # app.py (상단 임포트 밑)
 import io, re
@@ -142,44 +162,50 @@ META = {"id": "swing_error", "title": "3. Swing Error", "icon": "⚠️", "order
 def get_metadata(): return META
 
 
-def combine_pro_ama_table(builder_fn, pro_arr, ama_arr, key_col: str | None = None, add_diff: bool = True) -> pd.DataFrame:
-    """
-    builder_fn: (1) 단일 함수 또는 (2) (fn_pro, fn_ama) 튜플
-                각 함수는 배열 1개를 받아 DataFrame 반환, '현재결과' 컬럼을 가짐
-    """
-    # --- 빌더 분해 ---
-    if isinstance(builder_fn, tuple):
-        fn_p, fn_a = builder_fn
+def combine_pro_ama_table(builder, pro_arr, ama_arr, *, key_col: str | None = None):
+    # 1) 프로/일반 테이블 생성 (builder가 (pro, ama) 튜플일 수도 있음)
+    if isinstance(builder, tuple):
+        build_p, build_a = builder
+        df_p = build_p(pro_arr)
+        df_a = build_a(ama_arr)
     else:
-        fn_p = fn_a = builder_fn
+        df_p = builder(pro_arr)
+        df_a = builder(ama_arr)
 
-    dfp = fn_p(pro_arr).copy()
-    dfa = fn_a(ama_arr).copy()
+    # 2) seg 보장: 없으면 '검사명'→seg, 그것도 없으면 첫 컬럼으로 seg 생성
+    def _ensure_seg(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        if "seg" not in df.columns:
+            base = "검사명" if "검사명" in df.columns else df.columns[0]
+            df.insert(0, "seg", df[base].astype(str))
+        # ✅ 여기서부터 표에 '검사명'이 안 들어가도록 제거
+        df = df.drop(columns=["검사명"], errors="ignore")
+        return df
 
-    # 숫자화
-    for df in (dfp, dfa):
-        if "현재결과" in df.columns:
-            df["현재결과"] = pd.to_numeric(df["현재결과"], errors="coerce")
+    df_p = _ensure_seg(df_p)
+    df_a = _ensure_seg(df_a)
 
-    # 병합
-    if key_col and (key_col in dfp.columns) and (key_col in dfa.columns):
-        df = dfp[[key_col, "현재결과"]].merge(
-            dfa[[key_col, "현재결과"]],
-            on=key_col, how="outer", suffixes=(" (프로)", " (일반)")
-        )
-    else:
-        dfp["__idx__"] = range(len(dfp))
-        dfa["__idx__"] = range(len(dfa))
-        df = dfp[["__idx__", "현재결과"]].merge(
-            dfa[["__idx__", "현재결과"]],
-            on="__idx__", how="outer", suffixes=(" (프로)", " (일반)")
-        ).drop(columns="__idx__")
+    # 3) 조인 키 결정 (무조건 seg 우선)
+    if key_col is None:
+        key_col = "seg"
 
-    # 차이
-    if add_diff and {"현재결과 (프로)", "현재결과 (일반)"} <= set(df.columns):
-        df["현재결과 차(프로-일반)"] = df["현재결과 (프로)"] - df["현재결과 (일반)"]
+    # 4) 인덱스 조인 (seg 컬럼은 남겨두고, 인덱스로도 사용)
+    p = df_p.set_index(key_col, drop=False)
+    a = df_a.set_index(key_col, drop=False)
 
-    return df
+    out = p.join(a, lsuffix="_프로", rsuffix="_일반", how="outer")
+
+    # 5) 조인 후 seg를 인덱스에서 확실히 복원하고, 잡스러운 seg_* / 검사명 잔여 제거
+    out.insert(0, "seg", out.index.astype(str))
+    # seg 변형 컬럼/검사명 류는 싹 제거
+    cols_to_drop = [c for c in out.columns if c.startswith("seg_") or c.endswith("검사명")]
+    out = out.drop(columns=cols_to_drop, errors="ignore")
+
+    # 6) 인덱스 리셋 + seg 맨 앞 고정
+    out.reset_index(drop=True, inplace=True)
+    cols = ["seg"] + [c for c in out.columns if c != "seg"]
+    return out[cols]
+
 
 
 
@@ -201,11 +227,17 @@ def run(ctx=None):
 
 
     with tab_fb:
-        df = FB.build_fb_report_compare_table(pro_arr, ama_arr, start=1, end=10)
+        labels = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
+        df = FB.build_frontal_bend_compare(pro_arr, ama_arr, start=1, end=10, labels=labels,
+                                        pro_name="프로", ama_name="일반")
         st.dataframe(
             df.style.format({
-                "프로 θ": "{:.2f}", "일반 θ": "{:.2f}", "θ 차(프로-일반)": "{:+.2f}",
-                "프로 Δseg": "{:.2f}", "일반 Δseg": "{:.2f}", "Δseg 차(프로-일반)": "{:+.2f}",
+                "프로 Frontal Bend (deg)":"{:.2f}",
+                "프로 Section Change (deg)":"{:+.2f}",
+                "일반 Frontal Bend (deg)":"{:.2f}",
+                "일반 Section Change (deg)":"{:+.2f}",
+                "Frontal Bend Δ(프로-일반)":"{:+.2f}",
+                "Section Change Δ(프로-일반)":"{:+.2f}",
             }),
             use_container_width=True,
         )
@@ -443,6 +475,7 @@ def run(ctx=None):
         st.divider()
 
         items = [
+            
             (TR2.build_34_flat_sho_plane, "3.4 Flat Sho Plane",               "3_4_flat_sho_plane"),
             (TR2.build_35_flying_elbow,   "3.5 Flying Elbow",                  "3_5_flying_elbow"),
             (TR2.build_36_sway,           "3.6 Sway",                          "3_6_sway"),
@@ -491,7 +524,9 @@ def run(ctx=None):
         tables: dict[str, pd.DataFrame] = {}
 
         # Frontal Bend
-        tables["FrontalBend"] = FB.build_fb_report_compare_table(pro_arr, ama_arr, start=1, end=10)
+        tables["FrontalBend"] = FB.build_frontal_bend_compare(
+            pro_arr, ama_arr, start=1, end=10, labels=labels, pro_name="프로", ama_name="일반"
+        )
 
         # Body / Leg / Side
         tables["BodyHinge"] = BH.build_body_hinge_compare(

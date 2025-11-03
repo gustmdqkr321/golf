@@ -19,6 +19,12 @@ def g(arr: np.ndarray, code: str) -> float:
 def _mid(a: float, b: float) -> float:
     return 0.5 * (a + b)
 
+def _frame_labels(start: int, end: int, labels: list[str] | None = None) -> list[str]:
+    frames = list(range(start, end + 1))
+    if labels and len(labels) >= len(frames):
+        return [f"{f} ({labels[i]})" for i, f in enumerate(frames)]
+    return [str(f) for f in frames]
+
 # ── Step 1. 중심점: 골반 P, 어깨 S (프레임 row) ─────────────────────────────
 def center_P(arr: np.ndarray, row: int) -> tuple[float, float, float]:
     # Left Waist:  H,I,J | Right Waist: K,L,M
@@ -49,104 +55,110 @@ def frontal_bend_angle(arr: np.ndarray, row: int) -> tuple[float, float, float]:
     theta = 90.0 - math.degrees(math.atan2(dY, dX))
     return float(theta), float(dX), float(dY)
 
-# ── 단일 배열용 표 생성 ──────────────────────────────────────────────────────
-def build_frontal_bend_table(arr: np.ndarray, start: int = 1, end: int = 10,
-                             address_frame: int = 1) -> pd.DataFrame:
+# ── 단일표 (프레임별 + 섹션 요약) ────────────────────────────────────────────
+def build_frontal_bend_report(arr: np.ndarray,
+                              start: int = 1, end: int = 10,
+                              labels: list[str] | None = None) -> pd.DataFrame:
     """
-    각 프레임의 절대 각(θ), 어드레스 대비 변화(θ_i-θ_0), 구간 변화(θ_i-θ_{i-1})를 계산.
+    형식(_2BH.py와 동일 컨벤션):
+      Frame | Frontal Bend (deg) | Section Change (deg)
+    - 프레임 행: Δseg(θ_i - θ_{i-1}), 첫 프레임은 0.00
+    - 요약 행: Backswing(1-4), Downswing(4-7), Total(1-7)
     """
-    rows = []
-    theta0, _, _ = frontal_bend_angle(arr, address_frame)
-    prev_theta = None
+    # θ 시퀀스
+    thetas: list[float] = []
     for r in range(start, end + 1):
-        theta, dx, dy = frontal_bend_angle(arr, r)
-        delta_addr = theta - theta0
-        delta_seg  = (theta - prev_theta) if prev_theta is not None else float("nan")
-        rows.append([r, dx, dy, theta, delta_addr, delta_seg])
-        prev_theta = theta
-    return pd.DataFrame(rows, columns=[
-        "Frame", "Xs-Xp", "Ys-Yp", "FrontalBend(°)", "Δ(θ-θ_addr)", "Δseg(θ_i-θ_{i-1})"
-    ])
+        th, _, _ = frontal_bend_angle(arr, r)
+        thetas.append(float(th))
 
-# ── 프로/일반 비교 표 ────────────────────────────────────────────────────────
-def build_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
-                        start: int = 1, end: int = 10, address_frame: int = 1) -> pd.DataFrame:
-    p = build_frontal_bend_table(pro_arr, start, end, address_frame)[["Frame", "FrontalBend(°)", "Δ(θ-θ_addr)"]]
-    a = build_frontal_bend_table(ama_arr, start, end, address_frame)[["Frame", "FrontalBend(°)", "Δ(θ-θ_addr)"]]
-    p.columns = ["Frame", "프로 θ", "프로 Δ"]
-    a.columns = ["Frame", "일반 θ", "일반 Δ"]
-    df = p.merge(a, on="Frame", how="outer")
-    for c in ["프로 θ", "일반 θ", "프로 Δ", "일반 Δ"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    df["θ 차(프로-일반)"] = (df["프로 θ"] - df["일반 θ"])
-    df["Δ 차(프로-일반)"] = (df["프로 Δ"] - df["일반 Δ"])
+    # Δseg
+    dseg = np.diff(thetas, prepend=thetas[0]).astype(float)
+    dseg[0] = 0.0
+
+    fr_col   = _frame_labels(start, end, labels)
+    frame_no = list(range(start, end + 1))
+
+    rows: list[list[object]] = [
+        [frame_no[i], fr_col[i], round(thetas[i], 2), round(dseg[i], 2)]
+        for i in range(len(thetas))
+    ]
+
+    # 섹션 합계(Δ는 누적차로 표현)
+    backswing = round(thetas[4-1] - thetas[1-1], 2)   # 1→4
+    downswing = round(thetas[7-1] - thetas[4-1], 2)   # 4→7
+    total_1_7 = round(thetas[7-1] - thetas[1-1], 2)   # 1→7
+
+    rows += [
+        [101, "Backswing (1-4)", np.nan, backswing],
+        [102, "Downswing (4-7)", np.nan, downswing],
+        [103, "Total (1-7)",     np.nan, total_1_7],
+    ]
+
+    df = pd.DataFrame(rows, columns=["_ord", "Frame", "Frontal Bend (deg)", "Section Change (deg)"])
+    df = df.sort_values("_ord", kind="stable").drop(columns="_ord").reset_index(drop=True)
     return df
 
-def build_fb_report_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
-                                  start: int = 1, end: int = 10) -> pd.DataFrame:
+# ── 프로/일반 비교표 ─────────────────────────────────────────────────────────
+def build_frontal_bend_compare(pro_arr: np.ndarray, ama_arr: np.ndarray,
+                               start: int = 1, end: int = 10,
+                               labels: list[str] | None = None,
+                               pro_name: str = "프로", ama_name: str = "일반") -> pd.DataFrame:
     """
-    프레임 1~10의 Frontal Bend(θ)와 Δseg(= θ_i - θ_{i-1})를
-    프로/일반/차이로 한 표에 결합하고, 아래에 구간 합계도 함께 제공.
-
-    컬럼:
-      Frame | 프로 θ | 일반 θ | θ 차(프로-일반) | 프로 Δseg | 일반 Δseg | Δseg 차(프로-일반)
-    섹션 행(Backswing/Downswing/Total)은 θ 열은 NaN, Δseg 합계만 채움.
+    형식:
+      Frame | 프로 Frontal Bend (deg) | 프로 Section Change (deg) | 일반 ... | Δ(프로-일반) 2종
+    프레임 라벨/요약 행/정렬 규칙은 _2BH.py와 동일
     """
-    # 1) 단일 배열용 θ, Δseg 계산 헬퍼 (frame1의 Δseg=0.0)
-    def _thetas_deltas(arr: np.ndarray, start: int, end: int) -> tuple[list[float], list[float]]:
-        thetas: list[float] = []
-        for r in range(start, end + 1):
-            th, _, _ = frontal_bend_angle(arr, r)
-            thetas.append(float(th))
-        deltas: list[float] = [0.0]
-        for i in range(1, len(thetas)):
-            deltas.append(thetas[i] - thetas[i - 1])
-        return thetas, deltas
+    df_p = build_frontal_bend_report(pro_arr, start, end, labels)
+    df_a = build_frontal_bend_report(ama_arr, start, end, labels)
 
-    p_theta, p_delta = _thetas_deltas(pro_arr, start, end)
-    a_theta, a_delta = _thetas_deltas(ama_arr, start, end)
+    # 정렬용 키
+    def _ord_from_frame(s: str) -> int:
+        if s.startswith("Backswing"): return 101
+        if s.startswith("Downswing"): return 102
+        if s.startswith("Total"):     return 103
+        try:
+            return int(s.split()[0])
+        except Exception:
+            return 999
 
-    # 2) 프레임 행 구성
-    rows: list[list[object]] = []
-    frames = list(range(start, end + 1))
-    for i, fr in enumerate(frames):
-        rows.append([
-            fr,
-            p_theta[i], a_theta[i], (p_theta[i] - a_theta[i]),
-            p_delta[i], a_delta[i], (p_delta[i] - a_delta[i]),
-        ])
+    df_p["_ord"] = df_p["Frame"].map(_ord_from_frame)
 
-    # 3) 섹션 합계(Δseg 합만 의미 있음)
-    def sum_delta(deltas: list[float], a: int, b: int) -> float:
-        # Δseg는 (a+1 .. b)의 합
-        i0 = (a - start) + 1
-        i1 = (b - start) + 1
-        return float(sum(deltas[i0:i1]))
-
-    backswing_p = sum_delta(p_delta, 1, 4)
-    backswing_a = sum_delta(a_delta, 1, 4)
-    downswing_p = sum_delta(p_delta, 4, 7)
-    downswing_a = sum_delta(a_delta, 4, 7)
-    total17_p   = sum_delta(p_delta, 1, 7)
-    total17_a   = sum_delta(a_delta, 1, 7)
-
-    rows.extend([
-        ["Backswing (1-4)", np.nan, np.nan, np.nan,
-         backswing_p, backswing_a, backswing_p - backswing_a],
-        ["Downswing (4-7)", np.nan, np.nan, np.nan,
-         downswing_p, downswing_a, downswing_p - downswing_a],
-        ["Total (1-7)",     np.nan, np.nan, np.nan,
-         total17_p, total17_a, total17_p - total17_a],
-    ])
-
-    df = pd.DataFrame(rows, columns=[
+    df_p.columns = [
         "Frame",
-        "프로 θ", "일반 θ", "θ 차(프로-일반)",
-        "프로 Δseg", "일반 Δseg", "Δseg 차(프로-일반)",
-    ])
+        f"{pro_name} Frontal Bend (deg)",
+        f"{pro_name} Section Change (deg)",
+        "_ord",
+    ]
+    df_a.columns = [
+        "Frame",
+        f"{ama_name} Frontal Bend (deg)",
+        f"{ama_name} Section Change (deg)",
+    ]
 
-    # 숫자 컬럼 강제 숫자화(포매팅 에러 방지)
-    for c in ["프로 θ", "일반 θ", "θ 차(프로-일반)", "프로 Δseg", "일반 Δseg", "Δseg 차(프로-일반)"]:
+    df = df_p.merge(df_a, on="Frame", how="outer")
+    df = df.sort_values("_ord", kind="stable").drop(columns="_ord").reset_index(drop=True)
+
+    # Δ(프로-일반)
+    def _sub(a, b):
+        return np.nan if (pd.isna(a) or pd.isna(b)) else round(float(a) - float(b), 2)
+
+    df["Frontal Bend Δ(프로-일반)"]     = [
+        _sub(a, b) for a, b in zip(df[f"{pro_name} Frontal Bend (deg)"], df[f"{ama_name} Frontal Bend (deg)"])
+    ]
+    df["Section Change Δ(프로-일반)"] = [
+        _sub(a, b) for a, b in zip(df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"])
+    ]
+
+    # 숫자 컬럼 강제 숫자화(안전)
+    num_cols = [
+        f"{pro_name} Frontal Bend (deg)",
+        f"{pro_name} Section Change (deg)",
+        f"{ama_name} Frontal Bend (deg)",
+        f"{ama_name} Section Change (deg)",
+        "Frontal Bend Δ(프로-일반)",
+        "Section Change Δ(프로-일반)",
+    ]
+    for c in num_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
     return df
