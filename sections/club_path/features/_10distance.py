@@ -53,7 +53,6 @@ def build_ab_midpoints_table(
 def build_ab_distance_compare(
     pro_arr: np.ndarray, ama_arr: np.ndarray, start: int = 1, end: int = 10
 ) -> pd.DataFrame:
-    """프로/일반의 |AB|만 비교 테이블"""
     def _dists(arr):
         out=[]
         for n in range(start, end+1):
@@ -69,7 +68,15 @@ def build_ab_distance_compare(
     frames = list(range(start, end+1))
     p = _dists(pro_arr)
     a = _dists(ama_arr)
-    diff = [pp - aa for pp, aa in zip(p, a)]
-    return pd.DataFrame(
-        {"Frame": frames, "프로 |AB|": p, "일반 |AB|": a, "차이(프로-일반)": diff}
+
+    df = pd.DataFrame(
+        {"Frame": frames, "프로": p, "일반": a}
     )
+    # 숫자형 보장 + 반올림(표시는 2자리, dtype은 float 유지)
+    df["프로"]  = pd.to_numeric(df["프로"], errors="coerce").round(2)
+    df["일반"]  = pd.to_numeric(df["일반"], errors="coerce").round(2)
+
+    # (선택) 차이 컬럼이 필요하면 추가해도 하이라이트에는 영향 없음
+    df["차이(프로-일반)"] = (df["프로"] - df["일반"]).round(2)
+
+    return df

@@ -70,6 +70,6 @@ def build_pitch_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
 
     rows = []
     for f, p, a in zip(frame_numbers, pro, ama):
-        rows.append([f, p, a, p - a])
+        rows.append([str(f)+" Frame", p, a, p - a])
 
     return pd.DataFrame(rows, columns=["Frame", "프로", "일반", "차이(프로-일반)"])

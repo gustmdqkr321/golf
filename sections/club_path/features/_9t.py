@@ -52,8 +52,8 @@ def build_r_wrist_shoulder_x_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> 
     for fr, expr in mapping.items():
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append([fr, expr, p, a, p - a])
-    return pd.DataFrame(rows, columns=["Frame", "식", "프로", "일반", "차이(프로-일반)"])
+        rows.append([str(fr)+"Frame",p, a, p - a])
+    return pd.DataFrame(rows, columns=["Frame", "프로", "일반", "차이(프로-일반)"])
 
 # ── 표 2: Shoulder / Elbow (X) ──────────────────────────────────────────
 #   L: ARn-ALn,  R: BGn-BAn  (n=1..9)
@@ -65,16 +65,16 @@ def build_shoulder_elbow_x_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd
         expr = f"AR{n} - AL{n}"
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append(["L", n, expr, p, a, p - a])
+        rows.append(["L", n, p, a, p - a])
 
     # R 블록
     for n in range(1, 10):
         expr = f"BG{n} - BA{n}"
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append(["R", n, expr, p, a, p - a])
+        rows.append(["R", n, p, a, p - a])
 
-    return pd.DataFrame(rows, columns=["측", "Frame", "식", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["측", "Frame", "프로", "일반", "차이(프로-일반)"])
 
 
 
@@ -82,19 +82,19 @@ def build_shoulder_elbow_x_table_wide(
     pro_arr: np.ndarray, ama_arr: np.ndarray
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    가로형 표 (이전 레이아웃처럼 1~9가 컬럼)
+    가로형 표 (1~9가 컬럼)
     - L: ARn-ALn
     - R: BGn-BAn
     반환: (df_L, df_R)
-      * index: ["프로", "일반", "차이(프로-일반)"]
-      * columns: 1..9 (정수)
+      * 첫 번째 컬럼 '항목' = ["프로", "일반", "차이(프로-일반)"]
+      * 나머지 컬럼: 1..9 (정수, 값은 소수 둘째자리)
     """
     cols = list(range(1, 10))
 
     # L: ARn-ALn
-    pro_L = [ _eval_expr(pro_arr, f"AR{n}-AL{n}") for n in cols ]
-    ama_L = [ _eval_expr(ama_arr, f"AR{n}-AL{n}") for n in cols ]
-    dif_L = [ p - a for p, a in zip(pro_L, ama_L) ]
+    pro_L = [_eval_expr(pro_arr, f"AR{n}-AL{n}") for n in cols]
+    ama_L = [_eval_expr(ama_arr, f"AR{n}-AL{n}") for n in cols]
+    dif_L = [p - a for p, a in zip(pro_L, ama_L)]
     df_L = pd.DataFrame(
         [pro_L, ama_L, dif_L],
         index=["프로", "일반", "차이(프로-일반)"],
@@ -102,13 +102,22 @@ def build_shoulder_elbow_x_table_wide(
     )
 
     # R: BGn-BAn
-    pro_R = [ _eval_expr(pro_arr, f"BG{n}-BA{n}") for n in cols ]
-    ama_R = [ _eval_expr(ama_arr, f"BG{n}-BA{n}") for n in cols ]
-    dif_R = [ p - a for p, a in zip(pro_R, ama_R) ]
+    pro_R = [_eval_expr(pro_arr, f"BG{n}-BA{n}") for n in cols]
+    ama_R = [_eval_expr(ama_arr, f"BG{n}-BA{n}") for n in cols]
+    dif_R = [p - a for p, a in zip(pro_R, ama_R)]
     df_R = pd.DataFrame(
         [pro_R, ama_R, dif_R],
         index=["프로", "일반", "차이(프로-일반)"],
         columns=cols,
     )
 
-    return df_L, df_R
+    # ✅ 인덱스를 컬럼으로 승격 + 숫자형/반올림 유지
+    def _to_visible(df: pd.DataFrame) -> pd.DataFrame:
+        out = df.reset_index().rename(columns={"index": "항목"})
+        for c in out.columns:
+            if c == "항목":
+                continue
+            out[c] = pd.to_numeric(out[c], errors="coerce").round(2)
+        return out
+
+    return _to_visible(df_L), _to_visible(df_R)

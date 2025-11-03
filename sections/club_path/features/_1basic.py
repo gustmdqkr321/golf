@@ -89,8 +89,8 @@ def build_gs_pair_table(gs_pro_df: pd.DataFrame, gs_ama_df: pd.DataFrame) -> pd.
         p = g_gs(gs_pro_df,  addr)
         a = g_gs(gs_ama_df, addr)
         d = (p - a) if (np.isfinite(p) and np.isfinite(a)) else float("nan")
-        rows.append([label, f"{addr}(GS)", p, a, d])
-    return pd.DataFrame(rows, columns=["항목", "셀/식", "프로", "일반", "차이(프로-일반)"])
+        rows.append([label, p, a, d])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 
 # ────────────────────────────────────────────────────────────────────
 # (아래) Alignment(L/R) & Grip: 7~13
@@ -112,5 +112,5 @@ def build_alignment_grip_table(base_pro_arr: np.ndarray, base_ama_arr: np.ndarra
         try:    a = eval_expr_base(base_ama_arr, expr)
         except: a = float("nan")
         d = (p - a) if (np.isfinite(p) and np.isfinite(a)) else float("nan")
-        rows.append([label, expr, p, a, d])
-    return pd.DataFrame(rows, columns=["항목", "식", "프로", "일반", "차이(프로-일반)"])
+        rows.append([label, p, a, d])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])

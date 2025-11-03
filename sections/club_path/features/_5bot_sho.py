@@ -35,11 +35,11 @@ def _build_compare(
         p = _mid_diff(pro_arr, l1, l2, r1, r2, n)
         a = _mid_diff(ama_arr, l1, l2, r1, r2, n)
         rows.append([
-            f"{title} {n}",
-            f"({l1}{n}+{l2}{n})/2 − ({r1}{n}+{r2}{n})/2",
+            f"{n} Frame",
+            
             p, a, p - a
         ])
-    return pd.DataFrame(rows, columns=["항목", "식", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 
 # ── 표 #1 ──────────────────────────────────────────────────────────────────
 # 스샷 그대로: 1·7프레임만 (AT+BI)/2 − (AN+BC)/2, 나머지는 (AR+BG)/2 − (AL+BA)/2

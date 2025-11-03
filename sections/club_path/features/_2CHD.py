@@ -80,8 +80,9 @@ def build_cn_ax_1_10_table(base_pro_arr, base_ama_arr) -> pd.DataFrame:
     열: 항목 / 식 / 프로 / 일반 / 차이(프로-일반)
     """
     rows = []
+    
     for i in range(1, 11):
-        label = f"CN{i}−AX{i}"
+        label = f"{i} Frame"
         expr  = f"CN{i} - AX{i}"
         try:
             p = float(eval_expr_base(base_pro_arr, expr))

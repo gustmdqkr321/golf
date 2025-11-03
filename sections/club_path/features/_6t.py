@@ -29,14 +29,14 @@ def eval_expr(arr: np.ndarray, expr: str) -> float:
 
 # ── 1) 단일 항목: BC4 - BC1 ───────────────────────────────────────────────
 def build_bc4_minus_bc1_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
-    label = "B1/4 R SHO Z"
+    label = "1/4 R SHO Z"
     expr  = "BC4 - BC1"
     try: p = eval_expr(pro_arr, expr)
     except Exception: p = float("nan")
     try: a = eval_expr(ama_arr, expr)
     except Exception: a = float("nan")
-    rows = [[label, expr, p, a, p - a]]
-    return pd.DataFrame(rows, columns=["항목", "식", "프로", "일반", "차이(프로-일반)"])
+    rows = [[label,p, a, p - a]]
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 
 # ── 2) AX/CN/CO/CP (6↔2 프레임) + 조합식 표 ───────────────────────────────
 def build_ax_cn_group_6_2_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
@@ -63,5 +63,5 @@ def build_ax_cn_group_6_2_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
         except Exception: p = float("nan")
         try: a = eval_expr(ama_arr, expr)
         except Exception: a = float("nan")
-        rows.append([label, expr, p, a, p - a])
-    return pd.DataFrame(rows, columns=["항목", "식", "프로", "일반", "차이(프로-일반)"])
+        rows.append([label, p, a, p - a])
+    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])

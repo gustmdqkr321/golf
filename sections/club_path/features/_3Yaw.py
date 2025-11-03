@@ -68,6 +68,6 @@ def build_yaw_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray,
     ama = compute_yaw_angles_from_array(ama_arr, frames=frames)
     rows = []
     for i, (p, a) in enumerate(zip(pro, ama), start=frames[0] if isinstance(frames, range) else frames[0]):
-        rows.append([i, p, a, p - a])
+        rows.append([str(i)+" Frame", p, a, p - a])
     df = pd.DataFrame(rows, columns=["Frame", "프로", "일반", "차이(프로-일반)"])
     return df
