@@ -547,16 +547,49 @@ def _apply_highlight_to_styler(styler: Styler, **opts) -> Styler:
     if isinstance(df, pd.DataFrame):
         styles = _build_sign_and_diff_styles(df, **opts)
         styler = styler.apply(lambda _df: styles, axis=None)
-    
+
+    # ① 모든 셀 2자리 포맷 (숫자/숫자문자열/끝이 '!'인 문자열 모두 대응)
+    def _fmt2_all(x):
+        # 빈값/NaN은 공백
+        if x is None:
+            return ""
+        if isinstance(x, float) and np.isnan(x):
+            return ""
+        # 순수 숫자
+        if isinstance(x, (int, float, np.integer, np.floating)):
+            return f"{float(x):.2f}"
+        # 문자열 처리: '12.3!' 또는 '12.3' 등
+        if isinstance(x, str):
+            s = x.strip()
+            if s.endswith("!"):
+                core = s[:-1]
+                try:
+                    v = float(core)
+                    return f"{v:.2f}!"
+                except Exception:
+                    return x  # 숫자 파싱 실패 시 원본 유지
+            # 숫자 문자열이면 2자리
+            try:
+                v = float(s)
+                return f"{v:.2f}"
+            except Exception:
+                return x  # 텍스트는 그대로
+        # 그 외 타입은 그대로
+        return x
+
+    styler = styler.format(_fmt2_all, na_rep="")
+
+    # ② 인덱스 숨김
     styler = styler.hide(axis="index")
-    
-    # 가독성 테이블 스타일(선택)
+
+    # ③ 테이블 외형
     styler = styler.set_table_styles([
         {'selector': 'table', 'props': [('border-collapse', 'collapse'), ('width', '100%')]},
         {'selector': 'th, td', 'props': [('border', '1px solid #DDD'), ('padding', '6px 8px')]},
         {'selector': 'thead th', 'props': [('background', '#F7F7F7')]}
     ])
     return styler
+
 
 def _render_styler(styler: Styler, height: int | None = None, scrolling: bool = True):
     # 간단한 높이 추정

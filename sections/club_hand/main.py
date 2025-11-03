@@ -107,7 +107,7 @@ def run(ctx=None):
     )
 
     st.divider()
-    st.subheader("클럽 회전각 (Wrist → Clubhead)")
+    st.subheader("클럽 회전각")
     df_club = rot.build_club_rotation_table(pro_arr, ama_arr)
     st.dataframe(
         df_club.style.format({
@@ -181,7 +181,7 @@ def run(ctx=None):
     st.dataframe(df_k, use_container_width=True)
 
     st.divider()
-    st.subheader("회전 중심 구간차 (Ama − Pro)")
+    st.subheader("회전 중심 구간차")
     df_center = misc.build_rotation_center_diff_all(pro_arr, ama_arr)
     st.dataframe(
         df_center.style.format({
@@ -195,19 +195,19 @@ def run(ctx=None):
     # ── 단일 시트 엑셀 다운로드 + 마스터 등록 ────────────────────────────────
     # 섹션 내 모든 표를 dict로 모아 순서대로 한 시트에 쌓아 쓴다
     tables = {
-        "Basic (Distance/Speed/Force)": df_basic,
-        "Left Arm Rotation":            df_left,
-        "Club Rotation":                df_club,
-        "Knee TDD":                     df_knee,
-        "Knee Rotation (H/V)":          df_knee_rot,
-        "Pelvis TDD":                   df_pelvis,
-        "Pelvis Rotation (H/V)":        df_hip_rot,
-        "Shoulder TDD":                 df_shoulder,
-        "Shoulder Rotation (H/V)":      df_sho_rot,
-        "Pelvis Center":                df_p,
-        "Shoulder Center":              df_s,
-        "Knee Center":                  df_k,
-        "Center Diff (Ama − Pro)":      df_center,
+        "클럽헤드/손 운동량과 힘": df_basic,
+        "왼팔 수평/수직 회전각도":            df_left,
+        "클럽 수평/수직 회전각도":                df_club,
+        "무릎 TDD":                     df_knee,
+        "무릎 수평/수직 회전각도":          df_knee_rot,
+        "골반 TDD":                   df_pelvis,
+        "골반 수평/수직 회전각도":        df_hip_rot,
+        "어깨 TDD":                 df_shoulder,
+        "어깨 수평/수직 회전각도":      df_sho_rot,
+        "골반 회전 중심":                df_p,
+        "어깨 회전 중심":              df_s,
+        "무릎 회전 중심":                  df_k,
+        "통합표":      df_center,
     }
 
     # 1) 단일 시트(All) 엑셀 다운로드 버튼

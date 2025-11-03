@@ -61,13 +61,15 @@ def build_club_hand_table(base_pro: np.ndarray,
     t_pro = _time_vec(base_pro)
     t_ama = _time_vec(base_ama)
 
+    # 구간 스텝(인덱스)
     add_top_steps = [0, 1, 2]   # 1→4
     top_imp_steps = [3, 4, 5]   # 4→7
 
-    pro_dt_add_top = t_pro[3] - t_pro[0]
-    pro_dt_top_imp = t_pro[6] - t_pro[3]
-    ama_dt_add_top = t_ama[3] - t_ama[0]
-    ama_dt_top_imp = t_ama[6] - t_ama[3]
+    # 구간 시간
+    pro_dt_add_top = float(t_pro[3] - t_pro[0])
+    pro_dt_top_imp = float(t_pro[6] - t_pro[3])
+    ama_dt_add_top = float(t_ama[3] - t_ama[0])
+    ama_dt_top_imp = float(t_ama[6] - t_ama[3])
 
     def pack_row(player: str, part: str, dist_add_top: float, dt_add_top: float,
                  dist_top_imp: float, dt_top_imp: float, mass: float) -> dict:
@@ -78,12 +80,16 @@ def build_club_hand_table(base_pro: np.ndarray,
         return {
             "골퍼": player,
             "부위": part,
-            "ADD→TOP 이동거리(m)": round(dist_add_top, 2),
-            "ADD→TOP 평균속도(m/s)": round(v1, 2) if not np.isnan(v1) else np.nan,
-            "TOP→IMP 이동거리(m)": round(dist_top_imp, 2),
-            "TOP→IMP 평균속도(m/s)": round(v2, 2) if not np.isnan(v2) else np.nan,
-            "TOP→IMP 평균가속도(m/s²)": round(a2, 2) if not np.isnan(a2) else np.nan,
-            "임팩트 순간 힘(N)": round(F, 2) if not np.isnan(F) else np.nan,
+            # 시간(초) 추가
+            "ADD→TOP 시간(s)": round(float(dt_add_top), 2) if not np.isnan(dt_add_top) else np.nan,
+            "TOP→IMP 시간(s)": round(float(dt_top_imp), 2) if not np.isnan(dt_top_imp) else np.nan,
+            # 기존 지표
+            "ADD→TOP 이동거리(m)": round(float(dist_add_top), 2),
+            "ADD→TOP 평균속도(m/s)": round(float(v1), 2) if not np.isnan(v1) else np.nan,
+            "TOP→IMP 이동거리(m)": round(float(dist_top_imp), 2),
+            "TOP→IMP 평균속도(m/s)": round(float(v2), 2) if not np.isnan(v2) else np.nan,
+            "TOP→IMP 평균가속도(m/s²)": round(float(a2), 2) if not np.isnan(a2) else np.nan,
+            "임팩트 순간 힘(N)": round(float(F), 2) if not np.isnan(F) else np.nan,
         }
 
     rows = []
@@ -107,18 +113,18 @@ def build_club_hand_table(base_pro: np.ndarray,
 
     df = pd.DataFrame(rows)
 
-    # 비율 계산 (Pro=100)
+    # 비율(Pro=100) 계산: 시간은 비율 계산 대상 아님
     for metric in ["ADD→TOP 평균속도(m/s)", "임팩트 순간 힘(N)"]:
         for part in ["클럽", "손"]:
             try:
-                pro_val = float(df[(df["골퍼"]==pro_label) & (df["부위"]==part)][metric].iloc[0])
+                pro_val = float(df[(df["골퍼"] == pro_label) & (df["부위"] == part)][metric].iloc[0])
                 if pro_val == 0 or np.isnan(pro_val):
-                    df.loc[df["부위"]==part, f"{metric} 비율(Pro=100)"] = np.nan
+                    df.loc[df["부위"] == part, f"{metric} 비율(Pro=100)"] = np.nan
                 else:
-                    df.loc[df["부위"]==part, f"{metric} 비율(Pro=100)"] = (
-                        df.loc[df["부위"]==part, metric] / pro_val * 100
+                    df.loc[df["부위"] == part, f"{metric} 비율(Pro=100)"] = (
+                        df.loc[df["부위"] == part, metric].astype(float) / pro_val * 100.0
                     ).round(2)
             except Exception:
-                df.loc[df["부위"]==part, f"{metric} 비율(Pro=100)"] = np.nan
+                df.loc[df["부위"] == part, f"{metric} 비율(Pro=100)"] = np.nan
 
     return df
