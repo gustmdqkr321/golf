@@ -100,10 +100,12 @@ def compute_cocking_table_from_arrays(
     ama_arr: np.ndarray,
 ) -> pd.DataFrame:
     """
-    반환 형식:
-      index = ['ADD','BH','BH2','TOP','TR','DH','IMP','FH1','FH2','FIN',
-               '1-4','4-6','Cocking_Maintenance','Similarity']
-      columns = ['Pro ∠ABC','Ama ∠ABC','Pro Δ(°)','Ama Δ(°)','Similarity(0–100)']
+    반환 형식(인덱스 제거, seg 컬럼 추가):
+      columns = [
+        'seg','Pro ∠ABC','Ama ∠ABC','Pro Δ(°)','Ama Δ(°)','Similarity(0–100)'
+      ]
+      seg = ['ADD','BH','BH2','TOP','TR','DH','IMP','FH1','FH2','FIN',
+             '1-4','4-6','Cocking_Maintenance','Similarity']
     """
     labels = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
 
@@ -111,7 +113,7 @@ def compute_cocking_table_from_arrays(
     ang_p = compute_angles_from_array(pro_arr)
     ang_a = compute_angles_from_array(ama_arr)
 
-    # 2) 프레임 간 Δ (ADD 위치는 0.0로 채움 → 유사도 함수가 [1:]만 사용)
+    # 2) 프레임 간 Δ (ADD 위치는 0.0로 채움 → 유사도는 [1:]만 사용)
     d_p = [0.0] + [ang_p[i] - ang_p[i-1] for i in range(1, 10)]
     d_a = [0.0] + [ang_a[i] - ang_a[i-1] for i in range(1, 10)]
 
@@ -132,15 +134,21 @@ def compute_cocking_table_from_arrays(
     # 4) 코킹 유사도 (전체)
     overall_sim, _seg_scores = cocking_sim(np.array(d_p, float), np.array(d_a, float))
 
-    # 5) DF 조립 (마지막 행에 유사도 표기)
-    idx = labels + ["1-4", "4-6", "Cocking_Maintenance", "Similarity"]
+    # 5) DF 조립 (seg 컬럼으로 라벨 제공)
+    segs_all = labels + ["1-4", "4-6", "Cocking_Maintenance", "Similarity"]
     data = {
-        "Pro ∠ABC":        ang_p + [d1_4_p, d4_6_p, np.nan, np.nan],
-        "Ama ∠ABC":        ang_a + [d1_4_a, d4_6_a, np.nan, np.nan],
-        "Pro Δ(°)":        [np.nan] + d_p[1:] + [np.nan, np.nan, cm_p, np.nan],
-        "Ama Δ(°)":        [np.nan] + d_a[1:] + [np.nan, np.nan, cm_a, np.nan],
+        "seg":               segs_all,
+        "Pro ∠ABC":          ang_p + [d1_4_p, d4_6_p, np.nan, np.nan],
+        "Ama ∠ABC":          ang_a + [d1_4_a, d4_6_a, np.nan, np.nan],
+        "Pro Δ(°)":          [np.nan] + d_p[1:] + [np.nan, np.nan, cm_p, np.nan],
+        "Ama Δ(°)":          [np.nan] + d_a[1:] + [np.nan, np.nan, cm_a, np.nan],
         "Similarity(0–100)": [np.nan]*10 + [np.nan, np.nan, np.nan, overall_sim],
     }
-    df = pd.DataFrame(data, index=idx)
-    df.index.name = "Frame"
+    df = pd.DataFrame(data)
+
+    # 숫자 컬럼은 숫자로 강제(스타일/연산 안정)
+    num_cols = ["Pro ∠ABC","Ama ∠ABC","Pro Δ(°)","Ama Δ(°)","Similarity(0–100)"]
+    for c in num_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
     return df

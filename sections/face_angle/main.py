@@ -136,8 +136,8 @@ def run(ctx=None):
     df_hinge = hinge.build_hinging_compare_table(base_pro, base_ama, alpha=2.0)
     st.dataframe(
         df_hinge.style.format({
-            "pro Hinging(°)":"{:.2f}", "Δpro(°)":"{:+.2f}",
-            "ama Hinging(°)":"{:.2f}", "Δama(°)":"{:+.2f}",
+            "Pro Hinging(°)":"{:.2f}", "ΔPro(°)":"{:+.2f}",
+            "Ama Hinging(°)":"{:.2f}", "ΔAma(°)":"{:+.2f}",
             "Similarity(0-100)":"{:.2f}",
         }, na_rep=""),
         use_container_width=True

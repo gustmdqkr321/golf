@@ -52,12 +52,11 @@ def build_tilt_numerators_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
     p = _tilt_numerators_from_array(pro_arr)
     a = _tilt_numerators_from_array(ama_arr)
     d = _round2_list([pp - aa for pp, aa in zip(p, a)])
-    idx = [str(i) for i in range(1, 10)]
+    idx = ["1(Z)","2(X)","3(X)","4(X)","5(X)","6(X)","7(Z)","8(X)","9(X)"]
     df = pd.DataFrame(
-        {"프로": p, "일반": a, "차이(프로-일반)": d},
-        index=idx
+        {"seg":idx,"프로": p, "일반": a, "차이(프로-일반)": d},
+        
     )
-    df.index.name = "Frame"
     return df
 
 # ──────────────────────────────────────────────────────────────────────
@@ -76,10 +75,9 @@ def build_ay_bn_diffs_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Data
 
     idx = ["1","2","3","4","5","6","STD(2–6)","7","8","9"]
     df = pd.DataFrame(
-        {"프로": p, "일반": a, "차이(프로-일반)": d},
-        index=idx
+        {"seg":idx,"프로": p, "일반": a, "차이(프로-일반)": d},
+        
     )
-    df.index.name = "항목"
     return df
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,10 +129,9 @@ def build_abc_angles_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataF
     d = [float("nan") if (pp is None or a is None) else float(np.round(pp - aa, 2))
          for pp, aa in zip(p, a)]
 
-    idx = [str(i) for i in range(1, 11)]
+    idx = ["1","2","3","4","5","6","STD(2–6)","7","8","9"]
     df = pd.DataFrame(
-        {"프로 ∠ABC(°)": p, "일반 ∠ABC(°)": a, "차이(프로-일반)": d},
-        index=idx
+        {"seg":idx,"프로": p, "일반": a, "차이(프로-일반)": d},
+        
     )
-    df.index.name = "Frame"
     return df

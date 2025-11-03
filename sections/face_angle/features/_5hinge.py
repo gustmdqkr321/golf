@@ -116,16 +116,24 @@ def build_hinging_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray, alpha:
 
     # 유사도(전체 1~10 힌징값)
     sim = _hinging_similarity(np.array(r, float), np.array(h, float), alpha=alpha)
-
+    labels = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
     # 표 조립
-    idx = list(range(1, 11)) + ["1-4", "4-6", "Hinging_Maintenance", "Hinging_Similarity"]
+    idx = labels + ["1-4", "4-6", "Hinging_Maintenance", "Hinging_Similarity"]
     data = {
-        "pro Hinging(°)": r + [r_1_4, r_4_6, np.nan, np.nan],
-        "Δpro(°)":        r_d + [np.nan, np.nan, r_keep, np.nan],
-        "ama Hinging(°)": h + [h_1_4, h_4_6, np.nan, np.nan],
-        "Δama(°)":        h_d + [np.nan, np.nan, h_keep, np.nan],
+        "seg": idx,
+        "Pro Hinging(°)": r + [r_1_4, r_4_6, np.nan, np.nan],
+        "ΔPro(°)":        r_d + [np.nan, np.nan, r_keep, np.nan],
+        "Ama Hinging(°)": h + [h_1_4, h_4_6, np.nan, np.nan],
+        "ΔAma(°)":        h_d + [np.nan, np.nan, h_keep, np.nan],
         "Similarity(0-100)": [np.nan]*10 + [np.nan, np.nan, np.nan, sim],
     }
-    df = pd.DataFrame(data, index=idx)
-    df.index.name = "Frame"
+    df = pd.DataFrame(data)
+    # seg를 문자열로 통일 + 첫 컬럼로 고정
+    df["seg"] = df["seg"].astype(str)
+    df = df[["seg", "Pro Hinging(°)", "ΔPro(°)", "Ama Hinging(°)", "ΔAma(°)", "Similarity(0-100)"]]
+
+    # 숫자 컬럼 안전 캐스팅
+    num_cols = ["Pro Hinging(°)","ΔPro(°)","Ama Hinging(°)","ΔAma(°)","Similarity(0-100)"]
+    for c in num_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
     return df

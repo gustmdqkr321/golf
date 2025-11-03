@@ -92,16 +92,16 @@ def build_tilt_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Dat
     diff = [round(p - a, 2) for p, a in zip(pro, ama)]
     sim  = _tilt_similarity(pro, ama, alpha=2.0, scale=90.0)
 
-    frames = [f"{i}" for i in range(1, 10)]
+    frames = [f"{i} Frame" for i in range(1, 10)]
     df = pd.DataFrame(
         {
+            "frame": frames,
             "Pro Tilt (°)"   : pro,
             "Ama Tilt (°)"   : ama,
             "Similarity (%)" : [np.nan]*9,   # 본문 행은 NaN
         },
-        index=frames,
+        
     )
     # 마지막 행: 유사도
-    df.loc["Similarity"] = [np.nan, np.nan, sim]
-    df.index.name = "Frame"
+    df.loc["Similarity"] = ["sim",np.nan, np.nan, sim]
     return df

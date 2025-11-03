@@ -112,9 +112,9 @@ def build_face_angle_table(
         else:
             p = a = float("nan")
 
-        rows.append([label, token, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["항목", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
     # 숫자 포맷 안정화
     for c in ("프로", "일반", "차이(프로-일반)"):
         df[c] = pd.to_numeric(df[c], errors="coerce")

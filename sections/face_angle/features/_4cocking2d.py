@@ -60,16 +60,28 @@ def compute_yz_plane_angles_from_array(arr: np.ndarray) -> list[float]:
 # ─────────────────────────────────────────
 # 프로/일반 비교표
 # ─────────────────────────────────────────
-def build_yz_plane_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
+def build_yz_plane_compare_table(
+    pro_arr: np.ndarray, ama_arr: np.ndarray
+) -> pd.DataFrame:
     """
-    반환: columns = ["Frame","프로","일반","차이(프로-일반)"]
+    반환: columns = ["seg","Frame","프로","일반","차이(프로-일반)"]
+      seg 라벨: ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
     """
-    p_list = compute_yz_plane_angles_from_array(pro_arr)
-    a_list = compute_yz_plane_angles_from_array(ama_arr)
+    labels = ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"]
+
+    p_list = compute_yz_plane_angles_from_array(pro_arr)  # 길이 10
+    a_list = compute_yz_plane_angles_from_array(ama_arr)  # 길이 10
 
     rows = []
     for i in range(10):
         p = p_list[i] if i < len(p_list) else float("nan")
         a = a_list[i] if i < len(a_list) else float("nan")
-        rows.append([i+1, p, a, p - a])
-    return pd.DataFrame(rows, columns=["Frame","프로","일반","차이(프로-일반)"])
+        rows.append([labels[i], p, a, p - a])
+
+    df = pd.DataFrame(rows, columns=["seg","프로","일반","차이(프로-일반)"])
+
+    # 숫자 컬럼 강제 숫자화(스타일/연산 안정)
+    for c in ["프로","일반","차이(프로-일반)"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+

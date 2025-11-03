@@ -162,14 +162,14 @@ def build_bowing_table_from_arrays(pro_arr: np.ndarray, ama_arr: np.ndarray) -> 
 
     idx = labels + ["1-4","4-6","Bowing_Maintenance","Similarity"]
     data = {
+        "seg":                 idx,
         "Pro Rel. Bowing (°)":  list(fmt(rel_pro)) + [r2(pro_1_4), r2(pro_4_6), np.nan, np.nan],
         "Ama Rel. Bowing (°)":  list(fmt(rel_ama)) + [r2(ama_1_4), r2(ama_4_6), np.nan, np.nan],
         "Pro ΔRel. Bowing":     list(fmt(d_pro))   + [np.nan,      np.nan,      r2(pro_maint), np.nan],
         "Ama ΔRel. Bowing":     list(fmt(d_ama))   + [np.nan,      np.nan,      r2(ama_maint), np.nan],
         "Similarity":           [np.nan]*len(labels) + [np.nan, np.nan, np.nan, r2(sim)],
     }
-    df = pd.DataFrame(data, index=idx)
-    df.index.name = "Frame"
+    df = pd.DataFrame(data)
     return df
 
 # ──────────────────────────────────────────────────────────────────────
