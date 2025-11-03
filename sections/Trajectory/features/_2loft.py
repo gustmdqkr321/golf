@@ -82,16 +82,21 @@ DM_COLS = ["DM1", "DM4", "DM5", "DM6", "DM7", "DM8", "DM9", "DM10"]
 def build_dm_series_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
     """
     Trajectory - 2nd Feature: DM 시리즈 (BASE)
-    반환: 행 = ['프로','일반','차이(프로-일반)'], 열 = DM1..DM10
+    반환: 컬럼 = ['seg', DM1..DM10], 행 = ['프로','일반','차이(프로-일반)']
     """
-    pro_vals = [g_base(base_pro, addr) for addr in DM_COLS]
-    ama_vals = [g_base(base_ama, addr) for addr in DM_COLS]
+    pro_vals  = [g_base(base_pro, addr) for addr in DM_COLS]
+    ama_vals  = [g_base(base_ama, addr) for addr in DM_COLS]
     diff_vals = [p - a for p, a in zip(pro_vals, ama_vals)]
 
-    df = pd.DataFrame(
-        [pro_vals, ama_vals, diff_vals],
-        index=["프로", "일반", "차이(프로-일반)"],
-        columns=DM_COLS,
-    ).apply(pd.to_numeric, errors="coerce")
+    rows = [
+        ["프로"] + pro_vals,
+        ["일반"] + ama_vals,
+        ["차이(프로-일반)"] + diff_vals,
+    ]
+    df = pd.DataFrame(rows, columns=["seg"] + DM_COLS)
+
+    # 숫자형 강제(스타일러/연산 안정화), seg는 문자열 유지
+    for c in DM_COLS:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
     return df

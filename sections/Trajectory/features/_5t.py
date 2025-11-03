@@ -83,13 +83,13 @@ def build_arm_shoulder_angle_table(base_pro: np.ndarray, base_ama: np.ndarray) -
     p_y = _rsho_larm_y(base_pro); a_y = _rsho_larm_y(base_ama)
 
     rows = [
-        ("Angles", "L Arm Ang (∠BAC; AB=AX4-AL4, BC=AY4-AM4)",      "atan2(|AY4-AM4|, |AX4-AL4|)", p_l, a_l, p_l-a_l),
-        ("Angles", "Both Sho Ang (∠BAC; AB=BA4-AL4, BC=BB4-AM4)",   "atan2(|BB4-AM4|, |BA4-AL4|)", p_b, a_b, p_b-a_b),
-        ("Angles", "Sho−L Arm Ang = L Arm − Both Sho",              "diff(two angles)",            p_d, a_d, p_d-a_d),
-        ("Angles", "R Sho / L Arm Y",                               "AY4 - BB4",                   p_y, a_y, p_y-a_y),
+        ("L Arm Ang",      p_l, a_l, p_l-a_l),
+        ("Both Sho Ang",   p_b, a_b, p_b-a_b),
+        ("Sho−L Arm Ang",              p_d, a_d, p_d-a_d),
+        ("R Sho / L Arm Y",                               p_y, a_y, p_y-a_y),
     ]
 
-    df = pd.DataFrame(rows, columns=["분류","검사명","셀/식","프로","일반","차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["검사명","프로","일반","차이(프로-일반)"])
     for c in ["프로","일반","차이(프로-일반)"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df

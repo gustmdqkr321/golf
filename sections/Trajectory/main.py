@@ -11,6 +11,8 @@ from .features import _4t as sum1
 from .features import _5t as sum2
 from .features import _6t as case
 
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 마스터 합본용 세션 저장소
 # {section_id: {"title": str, "tables": dict[str, DataFrame]}}
@@ -134,14 +136,14 @@ def run(ctx=None):
         }),
         use_container_width=True
     )
-    tables["Wrist_ShoulderY_PelvisShoulderTilt_ArmBodyXY"] = df_metrics
+    tables["손목, 어깨 y차이각, 골반/어깨 틸트, 어깨/팔 거리"] = df_metrics
 
     st.divider()
     st.subheader("Arm / Shoulder Angles")
     df_armsho = sum2.build_arm_shoulder_angle_table(pro_arr, ama_arr)
     st.dataframe(df_armsho.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
                  use_container_width=True)
-    tables["Arm_Shoulder_Angles"] = df_armsho
+    tables["탑 시 왼팔 평면"] = df_armsho
 
     st.divider()
     st.subheader("club plane")

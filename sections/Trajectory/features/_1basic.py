@@ -160,10 +160,10 @@ def build_trajectory_table(gs_pro: pd.DataFrame, gs_ama: pd.DataFrame,
             p = a = float("nan")
 
         rows.append([group, label,
-                     ref if isinstance(ref, str) else str(ref),
+                    
                      p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["분류", "검사명", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["분류", "검사명", "프로", "일반", "차이(프로-일반)"])
 
     # 숫자형 보장
     for c in ["프로", "일반", "차이(프로-일반)"]:
