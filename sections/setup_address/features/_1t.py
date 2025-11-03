@@ -58,9 +58,9 @@ def _build_items_10_to_12(arr: np.ndarray, row: int = 1) -> List[List]:
     ang_fgh = abs(math.degrees(math.atan2(FH, HG)))
 
     return [
-        ["X", "10. Arm Raising 1", "A:(BA1,BB1) F:(BM1,BN1) B:(K1,L1) → ∠AFB", ang_afb],
-        ["X", "11. Arm Raising 2", "A:(BA1,BB1) F:(BM1,BN1) G:(CN1,CO1) → ∠AFG", ang_afg],
-        ["X", "12. Club Lie(직각)", "FH=BN1, HG=BM1−CN1 → ∠FGH", ang_fgh],
+        ["X", "10. Arm Raising 1", ang_afb],
+        ["X", "11. Arm Raising 2", ang_afg],
+        ["X", "12. Club Lie", ang_fgh],
     ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ def _build_items_10_to_12(arr: np.ndarray, row: int = 1) -> List[List]:
 def build_grip_face_angle_table(arr: np.ndarray) -> pd.DataFrame:
     """단일표(L/R = BN1 - AY1)"""
     val = eval_expr(arr, "BN1 - AY1")
-    return pd.DataFrame([["L/R", "BN1 - AY1", val]],
+    return pd.DataFrame([["L/R", val]],
                         columns=["검사명", "1 formula", "값"])
 
 def build_grip_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
@@ -96,12 +96,12 @@ def build_posture_all_table(arr: np.ndarray, row: int = 1) -> pd.DataFrame:
 
         # ── [교체된 7~9] ─────────────────────────────────────────────
         # 7) 직각삼각형: AC=K1-BA1, CB=BB1-L1 → ∠ACB (양수)
-        ["X", "7. Right(AC=K1−BA1, CB=BB1−L1) ∠ACB", "(right)",
+        ["X", "7. Frontal Bend",
          abs(math.degrees(math.atan2(abs(eval_expr(arr, "BB1 - L1")),
                                      abs(eval_expr(arr, "K1 - BA1")))))],
 
         # 8) 삼각형: A(BA1,BB1), B(K1,L1), D(CB1,CC1) → ∠ABD (꼭짓점 B)
-        ["X", "8. Triangle A(BA1,BB1) B(K1,L1) D(CB1,CC1) ∠ABD", "(angle)",
+        ["X", "8. Body Hinege",
          _angle2d_at(
              g(arr, "K1"), g(arr, "L1"),      # B
              g(arr, "BA1"), g(arr, "BB1"),    # A
@@ -109,7 +109,7 @@ def build_posture_all_table(arr: np.ndarray, row: int = 1) -> pd.DataFrame:
          )],
 
         # 9) 삼각형: B(K1,L1), D(CB1,CC1), E(CK1,CL1) → ∠BDE (꼭짓점 D)
-        ["X", "9. Triangle B(K1,L1) D(CB1,CC1) E(CK1,CL1) ∠BDE", "(angle)",
+        ["X", "9. Leg Hinge",
          _angle2d_at(
              g(arr, "CB1"), g(arr, "CC1"),    # D (vertex)
              g(arr, "K1"),  g(arr, "L1"),     # B
@@ -120,23 +120,23 @@ def build_posture_all_table(arr: np.ndarray, row: int = 1) -> pd.DataFrame:
     # 이하 기존 10~22, 23(CP1−AZ1) 그대로 유지
     rows.extend(_build_items_10_to_12(arr, row=row))
     rows += [
-        ["Y", "13. Head (AD1)", "AD1",         eval_expr(arr, "AD1")],
-        ["Y", "14. R/L SHO DIF", "AM1 - BB1",  eval_expr(arr, "AM1 - BB1")],
-        ["Y", "15. R/L WAI DIF", "K1 - I1",    eval_expr(arr, "K1 - I1")],
-        ["Y", "16. L KNE/L WRI", "AY1 - BQ1",  eval_expr(arr, "AY1 - BQ1")],
-        ["Z", "17. FOOT/WAI", "(J1+M1)/2 - (CM1+CA1)/2",
+        ["Y", "13. Head",         eval_expr(arr, "AD1")],
+        ["Y", "14. R/L SHO DIF", eval_expr(arr, "AM1 - BB1")],
+        ["Y", "15. R/L WAI DIF", eval_expr(arr, "K1 - I1")],
+        ["Y", "16. L KNE/L WRI", eval_expr(arr, "AY1 - BQ1")],
+        ["Z", "17. FOOT/WAI",
             eval_expr(arr, "(J1+M1)/2 - (CM1+CA1)/2")],
-        ["Z", "18. WAI/SHO",  "(AN1+BC1)/2 - (J1+M1)/2",
+        ["Z", "18. WAI/SHO",
             eval_expr(arr, "(AN1+BC1)/2 - (J1+M1)/2")],
-        ["Z", "19. SHO/HED",  "AE1 - (AN1+BC1)/2",
+        ["Z", "19. SHO/HED",
             eval_expr(arr, "AE1 - (AN1+BC1)/2")],
-        ["Z", "20. SHO/WRI",  "(AZ1+BO1)/2 - (AN1+BC1)/2",
+        ["Z", "20. SHO/WRI",
             eval_expr(arr, "(AZ1+BO1)/2 - (AN1+BC1)/2")],
-        ["Z", "21. WAI/WRI",  "(AZ1+BO1)/2 - (J1+M1)/2",
+        ["Z", "21. WAI/WRI",
             eval_expr(arr, "(AZ1+BO1)/2 - (J1+M1)/2")],
-        ["Z", "22. L SHO/L WRI", "AZ1 - AN1",
+        ["Z", "22. L SHO/L WRI",
             eval_expr(arr, "AZ1 - AN1")],
-        ["Z", "23. L WRI/CLU", "CP1 - AZ1",
+        ["Z", "23. L WRI/CLU",
             eval_expr(arr, "CP1 - AZ1")],
     ]
     df = pd.DataFrame(rows, columns=["축", "검사명", "1 formula", "값"])
@@ -166,11 +166,11 @@ def build_posture_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFr
 # =========================
 def _alignment_values(arr: np.ndarray) -> dict:
     return {
-        "1) Toe   (BS1-CE1)"     : eval_expr(arr, "BS1 - CE1"),
-        "2) Knee  (BP1-CB1)"     : eval_expr(arr, "BP1 - CB1"),
-        "3) Waist (H1-K1)"       : eval_expr(arr, "H1 - K1"),
-        "4) Shoulder (AL1-BA1)" : eval_expr(arr, "AL1 - BA1"),
-        "5) Elbow (AR1-BG1)"     : eval_expr(arr, "AR1 - BG1"),
+        "1) Toe"     : eval_expr(arr, "BS1 - CE1"),
+        "2) Knee"     : eval_expr(arr, "BP1 - CB1"),
+        "3) Waist"       : eval_expr(arr, "H1 - K1"),
+        "4) Shoulder" : eval_expr(arr, "AL1 - BA1"),
+        "5) Elbow"     : eval_expr(arr, "AR1 - BG1"),
     }
 
 def build_alignment_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
@@ -189,10 +189,10 @@ def _stance_ball_values(arr: np.ndarray) -> dict:
     width = abs(eval_expr(arr, "CA1 - CM1"))
     width_club = abs(eval_expr(arr, "CA1 - CP1")) / (width if width != 0 else float("nan"))
     return {
-        "1) Width |CA1-CM1|"               : width,
-        "2) Width/Club Pos |CA1-CP1|/|…|" : width_club,
-        "3) L. Toe / CHD X (CN1-BS1)"     : eval_expr(arr, "CN1 - BS1"),
-        "4) L ANK X (CA1)"                : eval_expr(arr, "CA1"),
+        "1) Width"               : width,
+        "2) Width/Club Pos" : width_club,
+        "3) L. Toe / CHD X"     : eval_expr(arr, "CN1 - BS1"),
+        "4) L ANK X"                : eval_expr(arr, "CA1"),
     }
 
 def build_stance_ball_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
@@ -251,17 +251,17 @@ def _basic_body_values(arr: np.ndarray) -> dict:
     v11 = abs(g(arr,"J1")) + abs(g(arr,"M1"))
 
     return {
-        "1) Lower Body (leg) 3D"  : v1,
-        "2) Thigh 3D"             : v2,
-        "3) Upper Body (right→AC)": v3,
-        "4) Head (right→AC)"      : v4,
-        "5) Height (1+2+3+4+|CL1|)": v5,
-        "6) Upper Arm (right→AC)" : v6,
-        "7) Forearm (right→AC)"   : v7,
-        "8) Club (from AC,AB→BC)" : v8,
-        "9) Swing Size (=6+7+8)"  : v9,
-        "10) Sho Width |AN1|+|BC1|": v10,
-        "11) Wai Width |J1|+|M1|" : v11,
+        "1) Lower Body (leg)"  : v1,
+        "2) Body(Thigh)"             : v2,
+        "3) Upper Body": v3,
+        "4) Head"      : v4,
+        "5) Height": v5,
+        "6) Upper Arm" : v6,
+        "7) Forearm"   : v7,
+        "8) Club" : v8,
+        "9) Swing Size"  : v9,
+        "10) Sho Width": v10,
+        "11) Wai Width" : v11,
     }
 
 def build_basic_body_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:

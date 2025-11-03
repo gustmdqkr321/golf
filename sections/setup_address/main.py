@@ -185,7 +185,7 @@ def run(ctx=None):
         # 이 섹션의 표를 모두 모아서 dict 구성
         tables = {
             "2.1.1.1 Grip face angle": grip_df,
-            "2.1.1.2 L WRI/CLU (posture)": df_posture,
+            "2.1.1.2 Posture all": df_posture,
             "2.1.1.3 Alignment": align_df,
             "2.1.1.4 Stance & Ball Position — ALL": sb_df,
             "2.1.1.5 Basic Body Data (Length, cm) — ALL": body_df,
