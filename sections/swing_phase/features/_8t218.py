@@ -127,9 +127,9 @@ def build_summary_phase_table(gs_pro: pd.DataFrame, gs_ama: pd.DataFrame,
             p = eval_expr_base(base_pro, ref); a = eval_expr_base(base_ama, ref)
         else:  # skip
             p = a = float("nan")
-        rows.append([group, label, ref, p, a, p - a])
+        rows.append([group, label, p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["분류", "검사명", "셀/식", "프로", "일반", "차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["분류", "검사명", "프로", "일반", "차이(프로-일반)"])
     for c in ["프로", "일반", "차이(프로-일반)"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df

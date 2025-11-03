@@ -75,9 +75,9 @@ def build_turn_bend_table(gs_pro: pd.DataFrame, gs_ama: pd.DataFrame) -> pd.Data
     for group, label, addr in _ITEMS:
         p = g_gs(gs_pro, addr)
         a = g_gs(gs_ama, addr)
-        rows.append([group, label, addr, p, a, p - a])
+        rows.append([group, label, p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["분류", "검사명", "셀", "프로", "일반", "차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["분류", "검사명", "프로", "일반", "차이(프로-일반)"])
 
     # 숫자형 보장
     for c in ["프로", "일반", "차이(프로-일반)"]:

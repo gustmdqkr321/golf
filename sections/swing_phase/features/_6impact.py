@@ -46,7 +46,7 @@ _ITEMS: list[tuple[str, str, str]] = [
     # SHO
     ("SHO", "L/R SHO X",            "BA7 - AL7"),
     ("SHO", "L/R SHO Y",            "BB7 - AM7"),
-    ("SHO", "6/7 L SHO Z ✔",        "AN6 - AN7"),
+    ("SHO", "6/7 L SHO Z",        "AN6 - AN7"),
     ("SHO", "6/7 L SHO X",          "AL7 - AL6"),
     ("SHO", "6/7 L SHO Y",          "AM7 - AM6"),
 
@@ -55,7 +55,7 @@ _ITEMS: list[tuple[str, str, str]] = [
     ("WAI", "R/L WAI Y",            "I7 - L7"),
     ("WAI", "6/7 L WAI Y",          "I7 - I6"),
     ("WAI", "6/7 L WAI Z",          "J7 - J6"),
-    ("WAI/SHO", "WAI/SHO Z ✔",      "(BC7 + AN7)/2 - (M7 + J7)/2"),
+    ("WAI/SHO", "WAI/SHO Z",      "(BC7 + AN7)/2 - (M7 + J7)/2"),
 
     # KNE
     ("KNE", "6/7 L KNE X",          "BP7 - BP6"),

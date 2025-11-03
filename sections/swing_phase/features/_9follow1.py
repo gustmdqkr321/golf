@@ -40,7 +40,7 @@ def _angle_LSHO(arr: np.ndarray) -> float:
 
 # ── 항목 정의 ─────────────────────────────────────────────
 _ITEMS: list[tuple[str, str, object]] = [
-    ("CHD", "CHD OUT/IN ✔",   "CN8 - CQ8"),
+    ("CHD", "CHD OUT/IN",   "CN8 - CQ8"),
     ("WRI", "R/L WRI Y",      "AY8 - BN8"),
     ("WRI/CHD", "L WRI/CHD X","CN8 - AX8"),
     ("WRI/CHD", "L WRI/CHD Y","CO8 - AY8"),
