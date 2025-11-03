@@ -122,65 +122,150 @@ def _series_and_diffs(values: list[float]) -> tuple[list[float], list[float]]:
 def _segment_changes(vals: list[float]) -> list[float]:
     return [round(vals[e] - vals[s], 2) for _, s, e in _SEGS]
 
+
 def build_delta_x_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
-    pro = [ _com_x(base_pro, n) - _base_x(base_pro, n) for n in _FRAMES ]
-    ama = [ _com_x(base_ama, n) - _base_x(base_ama, n) for n in _FRAMES ]
+    # 1) 프레임별 값 및 diff
+    pro = [_com_x(base_pro, n) - _base_x(base_pro, n) for n in _FRAMES]
+    ama = [_com_x(base_ama, n) - _base_x(base_ama, n) for n in _FRAMES]
     pro_vals, pro_diff = _series_and_diffs(pro)
     ama_vals, ama_diff = _series_and_diffs(ama)
 
-    seg1 = _segment_changes(pro_vals); seg2 = _segment_changes(ama_vals)
-    tot1 = round(sum(abs(d) for d in pro_diff[1:]), 2)
-    tot2 = round(sum(abs(d) for d in ama_diff[1:]), 2)
+    # 2) 구간 정의(요구사항대로 3구간만 요약: 1-4, 4-7, 7-10)
+    segs3 = [("1-4", 0, 3), ("4-7", 3, 6), ("7-10", 6, 9)]
 
-    idx = [str(i) for i in _FRAMES] + [label for label,_,_ in _SEGS] + ["Total"]
+    # 3) 일반합(값의 끝-시작), 절대값합(|diff|의 합) + Total
+    seg_norm_p, seg_norm_a = [], []
+    seg_abs_p,  seg_abs_a  = [], []
+    for _, s, e in segs3:
+        # 일반합
+        seg_norm_p.append(round(float(pro_vals[e] - pro_vals[s]), 2))
+        seg_norm_a.append(round(float(ama_vals[e] - ama_vals[s]), 2))
+        # 절대값합 (diff 의 첫 원소 None 제외)
+        pdiffs = [d for d in pro_diff[s+1:e+1] if d is not None]
+        adiffs = [d for d in ama_diff[s+1:e+1] if d is not None]
+        seg_abs_p.append(round(float(sum(abs(d) for d in pdiffs)), 2))
+        seg_abs_a.append(round(float(sum(abs(d) for d in adiffs)), 2))
+
+    tot_norm_p = round(float(pro_vals[-1] - pro_vals[0]), 2)
+    tot_norm_a = round(float(ama_vals[-1] - ama_vals[0]), 2)
+    tot_abs_p  = round(float(sum(abs(d) for d in pro_diff[1:] if d is not None)), 2)
+    tot_abs_a  = round(float(sum(abs(d) for d in ama_diff[1:] if d is not None)), 2)
+
+    # 4) 인덱스 구성: 프레임 → 일반합 3개 + Total → 절대값합 3개 + Total
+    idx = (
+        [str(i) for i in _FRAMES] +
+        [lbl for (lbl, _, _) in segs3] + ["Total"] +
+        [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
+    )
+
+    pad = len(segs3) + 1  # 3구간 + Total
+    pro_vals_col = pro_vals + [None]*pad + [None]*pad
+    ama_vals_col = ama_vals + [None]*pad + [None]*pad
+
+    pro_diff_col = pro_diff + seg_norm_p + [tot_norm_p] + seg_abs_p + [tot_abs_p]
+    ama_diff_col = ama_diff + seg_norm_a + [tot_norm_a] + seg_abs_a + [tot_abs_a]
+
     df = pd.DataFrame({
-        "프로":        pro_vals + [None]*5,
-        "일반":        ama_vals + [None]*5,
-        "프로 diff":   pro_diff  + seg1 + [tot1],
-        "일반 diff":   ama_diff  + seg2 + [tot2],
+        "프로":      pro_vals_col,
+        "일반":      ama_vals_col,
+        "프로 diff": pro_diff_col,
+        "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
     return df
+
 
 def build_delta_y_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
-    pro = [ _com_y(base_pro, n) for n in _FRAMES ]
-    ama = [ _com_y(base_ama, n) for n in _FRAMES ]
+    pro = [_com_y(base_pro, n) for n in _FRAMES]
+    ama = [_com_y(base_ama, n) for n in _FRAMES]
     pro_vals, pro_diff = _series_and_diffs(pro)
     ama_vals, ama_diff = _series_and_diffs(ama)
 
-    seg1 = _segment_changes(pro_vals); seg2 = _segment_changes(ama_vals)
-    tot1 = round(sum(abs(d) for d in pro_diff[1:]), 2)
-    tot2 = round(sum(abs(d) for d in ama_diff[1:]), 2)
+    segs3 = [("1-4", 0, 3), ("4-7", 3, 6), ("7-10", 6, 9)]
 
-    idx = [str(i) for i in _FRAMES] + [label for label,_,_ in _SEGS] + ["Total"]
+    seg_norm_p, seg_norm_a = [], []
+    seg_abs_p,  seg_abs_a  = [], []
+    for _, s, e in segs3:
+        seg_norm_p.append(round(float(pro_vals[e] - pro_vals[s]), 2))
+        seg_norm_a.append(round(float(ama_vals[e] - ama_vals[s]), 2))
+        pdiffs = [d for d in pro_diff[s+1:e+1] if d is not None]
+        adiffs = [d for d in ama_diff[s+1:e+1] if d is not None]
+        seg_abs_p.append(round(float(sum(abs(d) for d in pdiffs)), 2))
+        seg_abs_a.append(round(float(sum(abs(d) for d in adiffs)), 2))
+
+    tot_norm_p = round(float(pro_vals[-1] - pro_vals[0]), 2)
+    tot_norm_a = round(float(ama_vals[-1] - ama_vals[0]), 2)
+    tot_abs_p  = round(float(sum(abs(d) for d in pro_diff[1:] if d is not None)), 2)
+    tot_abs_a  = round(float(sum(abs(d) for d in ama_diff[1:] if d is not None)), 2)
+
+    idx = (
+        [str(i) for i in _FRAMES] +
+        [lbl for (lbl, _, _) in segs3] + ["Total"] +
+        [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
+    )
+
+    pad = len(segs3) + 1
+    pro_vals_col = pro_vals + [None]*pad + [None]*pad
+    ama_vals_col = ama_vals + [None]*pad + [None]*pad
+
+    pro_diff_col = pro_diff + seg_norm_p + [tot_norm_p] + seg_abs_p + [tot_abs_p]
+    ama_diff_col = ama_diff + seg_norm_a + [tot_norm_a] + seg_abs_a + [tot_abs_a]
+
     df = pd.DataFrame({
-        "프로":        pro_vals + [None]*5,
-        "일반":        ama_vals + [None]*5,
-        "프로 diff":   pro_diff  + seg1 + [tot1],
-        "일반 diff":   ama_diff  + seg2 + [tot2],
+        "프로":      pro_vals_col,
+        "일반":      ama_vals_col,
+        "프로 diff": pro_diff_col,
+        "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
     return df
+
 
 def build_delta_z_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
-    pro = [ _com_z(base_pro, n) for n in _FRAMES ]
-    ama = [ _com_z(base_ama, n) for n in _FRAMES ]
+    pro = [_com_z(base_pro, n) for n in _FRAMES]
+    ama = [_com_z(base_ama, n) for n in _FRAMES]
     pro_vals, pro_diff = _series_and_diffs(pro)
     ama_vals, ama_diff = _series_and_diffs(ama)
 
-    seg1 = _segment_changes(pro_vals); seg2 = _segment_changes(ama_vals)
-    tot1 = round(sum(abs(d) for d in pro_diff[1:]), 2)
-    tot2 = round(sum(abs(d) for d in ama_diff[1:]), 2)
+    segs3 = [("1-4", 0, 3), ("4-7", 3, 6), ("7-10", 6, 9)]
 
-    idx = [str(i) for i in _FRAMES] + [label for label,_,_ in _SEGS] + ["Total"]
+    seg_norm_p, seg_norm_a = [], []
+    seg_abs_p,  seg_abs_a  = [], []
+    for _, s, e in segs3:
+        seg_norm_p.append(round(float(pro_vals[e] - pro_vals[s]), 2))
+        seg_norm_a.append(round(float(ama_vals[e] - ama_vals[s]), 2))
+        pdiffs = [d for d in pro_diff[s+1:e+1] if d is not None]
+        adiffs = [d for d in ama_diff[s+1:e+1] if d is not None]
+        seg_abs_p.append(round(float(sum(abs(d) for d in pdiffs)), 2))
+        seg_abs_a.append(round(float(sum(abs(d) for d in adiffs)), 2))
+
+    tot_norm_p = round(float(pro_vals[-1] - pro_vals[0]), 2)
+    tot_norm_a = round(float(ama_vals[-1] - ama_vals[0]), 2)
+    tot_abs_p  = round(float(sum(abs(d) for d in pro_diff[1:] if d is not None)), 2)
+    tot_abs_a  = round(float(sum(abs(d) for d in ama_diff[1:] if d is not None)), 2)
+
+    idx = (
+        [str(i) for i in _FRAMES] +
+        [lbl for (lbl, _, _) in segs3] + ["Total"] +
+        [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
+    )
+
+    pad = len(segs3) + 1
+    pro_vals_col = pro_vals + [None]*pad + [None]*pad
+    ama_vals_col = ama_vals + [None]*pad + [None]*pad
+
+    pro_diff_col = pro_diff + seg_norm_p + [tot_norm_p] + seg_abs_p + [tot_abs_p]
+    ama_diff_col = ama_diff + seg_norm_a + [tot_norm_a] + seg_abs_a + [tot_abs_a]
+
     df = pd.DataFrame({
-        "프로":        pro_vals + [None]*5,
-        "일반":        ama_vals + [None]*5,
-        "프로 diff":   pro_diff  + seg1 + [tot1],
-        "일반 diff":   ama_diff  + seg2 + [tot2],
+        "프로":      pro_vals_col,
+        "일반":      ama_vals_col,
+        "프로 diff": pro_diff_col,
+        "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
     return df
+
 
 def build_summary_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
     dx = build_delta_x_table(base_pro, base_ama)
@@ -202,22 +287,51 @@ def build_summary_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
     out = pd.DataFrame(rows, columns=["Axis","Segment","프로","일반"])
     return out
 
-def build_smdi_mrmi_table(base_pro: np.ndarray, base_ama: np.ndarray,
-                          pro_label: str="Pro", ama_label: str="Ama") -> pd.DataFrame:
+def build_smdi_mrmi_table(
+    base_pro: np.ndarray,
+    base_ama: np.ndarray,
+    pro_label: str = "Pro",
+    ama_label: str = "Ama",
+) -> pd.DataFrame:
+    import numpy as np
+    import pandas as pd
+
     summary = build_summary_table(base_pro, base_ama)
-    pro_tot = {ax: float(summary[(summary.Axis==ax) & (summary.Segment=="Total")]["프로"]) for ax in ["X","Y","Z"]}
-    ama_tot = {ax: float(summary[(summary.Axis==ax) & (summary.Segment=="Total")]["일반"]) for ax in ["X","Y","Z"]}
 
-    mrmi = {ax: round((ama_tot[ax]-pro_tot[ax]) / pro_tot[ax] * 100, 2) for ax in ["X","Y","Z"]}
-    scores = {ax: 100 - abs(ama_tot[ax]-pro_tot[ax]) / pro_tot[ax] * 100 for ax in ["X","Y","Z"]}
-    smdi = round(sum(scores.values())/3, 2)
+    # 프로/일반 Total 값 추출
+    pro_tot = {
+        ax: float(summary[(summary.Axis == ax) & (summary.Segment == "Total")]["프로"])
+        for ax in ["X", "Y", "Z"]
+    }
+    ama_tot = {
+        ax: float(summary[(summary.Axis == ax) & (summary.Segment == "Total")]["일반"])
+        for ax in ["X", "Y", "Z"]
+    }
 
-    df = pd.DataFrame(
-        [
-            {"SMDI":100, "MRMI X":0, "MRMI Y":0, "MRMI Z":0},
-            {"SMDI":smdi, "MRMI X":mrmi["X"], "MRMI Y":mrmi["Y"], "MRMI Z":mrmi["Z"]},
-        ],
-        index=[pro_label, ama_label],
-        columns=["SMDI","MRMI X","MRMI Y","MRMI Z"]
-    )
+    # MRMI(%) = (Ama - Pro) / Pro * 100
+    # 0 나눗셈 방지: Pro가 0이면 NaN 처리
+    def safe_ratio(n, d):
+        return np.nan if d == 0 else (n - d) / d * 100.0
+
+    mrmi = {ax: round(safe_ratio(ama_tot[ax], pro_tot[ax]), 2) for ax in ["X", "Y", "Z"]}
+
+    # SMDI = 100 - |Ama - Pro| / |Pro| * 100 의 3축 평균 (Pro=0이면 NaN)
+    def safe_score(n, d):
+        return np.nan if d == 0 else 100.0 - abs(n - d) / abs(d) * 100.0
+
+    scores = {ax: safe_score(ama_tot[ax], pro_tot[ax]) for ax in ["X", "Y", "Z"]}
+    smdi = round(float(np.nanmean([scores["X"], scores["Y"], scores["Z"]])), 2)
+
+    # 행: Metric, 열: Pro/Ama (가로로 Pro/Ama 표기)
+    rows = [
+        ("SMDI",  100.0, smdi),
+        ("MRMI X", 0.0,  mrmi["X"]),
+        ("MRMI Y", 0.0,  mrmi["Y"]),
+        ("MRMI Z", 0.0,  mrmi["Z"]),
+    ]
+    df = pd.DataFrame(rows, columns=["Metric", pro_label, ama_label]).set_index("Metric")
+    # 숫자 보장
+    df[pro_label] = pd.to_numeric(df[pro_label], errors="coerce")
+    df[ama_label] = pd.to_numeric(df[ama_label], errors="coerce")
     return df
+

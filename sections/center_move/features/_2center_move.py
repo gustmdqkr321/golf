@@ -90,53 +90,99 @@ def _delta_rows_table(
     ama_label: str = "Ama",
 ) -> pd.DataFrame:
     # 프레임 i→i+1 델타 (1-2 ... 9-10)
-    def deltas(arr): return [com_func(arr, i+1) - com_func(arr, i) for i in range(1, 10)]
+    def deltas(arr): 
+        return [com_func(arr, i+1) - com_func(arr, i) for i in range(1, 10)]
+
     d_pro = deltas(pro_arr)
     d_ama = deltas(ama_arr)
 
-    idx = [f"{i}-{i+1}" for i in range(1, 10)]
-    mov = pd.DataFrame(index=idx)
+    step_idx = [f"{i}-{i+1}" for i in range(1, 10)]
+    mov = pd.DataFrame(index=step_idx)
 
     # 값 채우기 (소수 2자리)
     for comp, label in [(d_pro, pro_label), (d_ama, ama_label)]:
-        tmp = pd.DataFrame(comp, index=idx, columns=["ΔX", "ΔY", "ΔZ"]).round(2)
+        tmp = pd.DataFrame(comp, index=step_idx, columns=["ΔX", "ΔY", "ΔZ"]).round(2)
         for ax in ["X", "Y", "Z"]:
             mov[f"Δ{ax}_{label}"] = tmp[f"Δ{ax}"]
 
-    # 부호 불일치 표시는 Ama 쪽에만 '!' 표시, Pro도 문자열 포맷 통일
+    # 부호 불일치 표시는 Ama 쪽에만 '!' 표시(웹에서 시각 구분용)
     for ax in ["X", "Y", "Z"]:
-        for k in idx:
+        for k in step_idx:
             pr = float(mov.at[k, f"Δ{ax}_{pro_label}"])
             am = float(mov.at[k, f"Δ{ax}_{ama_label}"])
             mov.at[k, f"Δ{ax}_{pro_label}"] = f"{pr:.2f}"
             mov.at[k, f"Δ{ax}_{ama_label}"] = f"{am:.2f}!" if pr * am < 0 else f"{am:.2f}"
 
-    # 구간 합(1-4, 4-7, 7-10)
-    sections = {"1-4": (1, 4), "4-7": (4, 7), "7-10": (7, 10)}
-    for sec, (a, b) in sections.items():
+    # ── 요약 구간 ─────────────────────────────────────────
+    segs3 = [("1-4", 1, 4), ("4-7", 4, 7), ("7-10", 7, 10)]  # [시작,끝) 구간
+
+    # 1) 일반합(연속 step 델타의 산술합)
+    for seg_label, a, b in segs3:
         keys = [f"{i}-{i+1}" for i in range(a, b)]
         for label in [pro_label, ama_label]:
             for ax in ["X", "Y", "Z"]:
                 col = f"Δ{ax}_{label}"
                 vals = mov.loc[keys, col].astype(str).str.rstrip("!").astype(float)
-                mov.at[sec, col] = round(vals.sum(), 2)
+                mov.at[seg_label, col] = round(float(vals.sum()), 2)
 
-    # Total / TotalAbs
-    step_keys = [f"{i}-{i+1}" for i in range(1, 10)]
+    # Total(일반합의 전체)
     for label in [pro_label, ama_label]:
         for ax in ["X", "Y", "Z"]:
             col = f"Δ{ax}_{label}"
-            vals = mov.loc[step_keys, col].astype(str).str.rstrip("!").astype(float)
-            mov.at["Total", col]    = round(vals.sum(), 2)
-            mov.at["TotalAbs", col] = round(vals.abs().sum(), 2)
+            vals = mov.loc[step_idx, col].astype(str).str.rstrip("!").astype(float)
+            mov.at["Total", col] = round(float(vals.sum()), 2)
 
-    # TotalXYZ: 세 축 절대합(한 줄 요약) → ΔX 컬럼에만 표기
+    # 2) 절대값합(각 step의 절대값 합)
+    for seg_label, a, b in segs3:
+        keys = [f"{i}-{i+1}" for i in range(a, b)]
+        abs_label = f"abs {seg_label}"
+        for label in [pro_label, ama_label]:
+            for ax in ["X", "Y", "Z"]:
+                col = f"Δ{ax}_{label}"
+                vals = mov.loc[keys, col].astype(str).str.rstrip("!").astype(float).abs()
+                mov.at[abs_label, col] = round(float(vals.sum()), 2)
+
+    # abs Total
+    for label in [pro_label, ama_label]:
+        for ax in ["X", "Y", "Z"]:
+            col = f"Δ{ax}_{label}"
+            vals = mov.loc[step_idx, col].astype(str).str.rstrip("!").astype(float).abs()
+            mov.at["TotalAbs", col] = round(float(vals.sum()), 2)
+
+    # 3) TotalXYZ: 세 축 절대합(요약 한 줄) → ΔX 컬럼에만 표기
     for label in [pro_label, ama_label]:
         abs_cols = [f"Δ{ax}_{label}" for ax in ["X", "Y", "Z"]]
         total_xyz = mov.loc["TotalAbs", abs_cols].astype(float).sum()
-        mov.at["TotalXYZ", f"ΔX_{label}"] = round(total_xyz, 2)
+        mov.at["TotalXYZ", f"ΔX_{label}"] = round(float(total_xyz), 2)
 
+    # 인덱스 정렬: step(1-2…9-10) → 일반합(1-4,4-7,7-10,Total) → 절대값합(abs 1-4,abs 4-7,abs 7-10,abs Total) → TotalXYZ
+    desired_order = (
+        step_idx +
+        [lab for (lab, _, _) in segs3] + ["Total"] +
+        [f"abs {lab}" for (lab, _, _) in segs3] + ["TotalAbs"] +
+        ["TotalXYZ"]
+    )
+    mov = mov.reindex(desired_order)
+    def _fmt2(x):
+        # '1.23!' 같은 표식은 느낌표 유지한 채 두 자리로
+        if isinstance(x, str) and x.endswith('!'):
+            try:
+                v = float(x[:-1])
+                return f"{v:.2f}!"
+            except Exception:
+                return x
+        # 빈값/NaN은 공백으로
+        if x is None or (isinstance(x, float) and np.isnan(x)):
+            return ""
+        try:
+            return f"{float(x):.2f}"
+        except Exception:
+            return x
+
+    for col in mov.columns:
+        mov[col] = mov[col].map(_fmt2)
     return mov
+
 
 # ───────────── 부위별 COM 정의 ─────────────
 def _com_knee(arr, n):
@@ -190,9 +236,11 @@ def build_total_move(base_pro: np.ndarray, base_ama: np.ndarray,
         for part, df in tables.items():
             for label in [pro_label, ama_label]:
                 if seg == "Total":
-                    val = (df.at["TotalAbs", f"ΔX_{label}"]
-                         + df.at["TotalAbs", f"ΔY_{label}"]
-                         + df.at["TotalAbs", f"ΔZ_{label}"])
+                    # 🔧 문자열일 수 있으므로 안전하게 float 캐스팅 후 합산
+                    x = float(df.at["TotalAbs", f"ΔX_{label}"])
+                    y = float(df.at["TotalAbs", f"ΔY_{label}"])
+                    z = float(df.at["TotalAbs", f"ΔZ_{label}"])
+                    val = x + y + z
                 else:
                     a, b = map(int, seg.split("-"))
                     keys = [f"{i}-{i+1}" for i in range(a, b)]
@@ -209,6 +257,7 @@ def build_total_move(base_pro: np.ndarray, base_ama: np.ndarray,
         for label in [pro_label, ama_label]:
             cols.append(f"{part} 총 이동({label}, cm)")
     return pd.DataFrame(out)[cols]
+
 
 def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
                            pro_label: str = "Pro", ama_label: str = "Ama") -> pd.DataFrame:

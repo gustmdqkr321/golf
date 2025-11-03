@@ -86,49 +86,52 @@ def run(ctx=None):
     tables: dict[str, pd.DataFrame] = {}
 
     # 1) SMDI / MRMI
-    st.markdown("### SMDI / MRMI")
-    smdi = feat.build_smdi_mrmi_table(pro_arr, ama_arr, "Pro", "Ama")
-    st.dataframe(
-        smdi.style.format({"SMDI":"{:.2f}","MRMI X":"{:.2f}","MRMI Y":"{:.2f}","MRMI Z":"{:.2f}"}),
-        use_container_width=True
-    )
-    tables["SMDI_MRMI"] = smdi
+    st.markdown("### 스윙이동평가지표(swing movement evalution indicators)")
+    smdi = feat.build_smdi_mrmi_table(pro_arr, ama_arr, "Pro", "Ama")  # 열: Pro, Ama / 행: SMDI, MRMI X/Y/Z
+
+    # 컬럼 기준 포맷 지정
+    fmt = {col: "{:.2f}" for col in smdi.columns}  # {"Pro": "{:.2f}", "Ama": "{:.2f}"}
+    st.dataframe(smdi.style.format(fmt), use_container_width=True)
+
+    # 엑셀용 저장은 DataFrame 원본으로 그대로
+    tables["스윙이동평가지표(swing movement evalution indicators)"] = smdi
+
 
     # 2) ΔX
-    st.markdown("### ΔX (COM vs BaseX)")
+    st.markdown("### 무게중심 X")
     dx = feat.build_delta_x_table(pro_arr, ama_arr)
     st.dataframe(dx.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["Delta_X_COM_vs_BaseX"] = dx
+    tables["무게중심 X"] = dx
 
     st.divider()
 
     # 3) ΔY
-    st.markdown("### ΔY (COM Height)")
+    st.markdown("### 수직중심 Y")
     dy = feat.build_delta_y_table(pro_arr, ama_arr)
     st.dataframe(dy.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["Delta_Y_COM_Height"] = dy
+    tables["수직중심 Y"] = dy
 
     st.divider()
 
     # 4) ΔZ
-    st.markdown("### ΔZ (Laterality)")
+    st.markdown("### 무게중심 Z")
     dz = feat.build_delta_z_table(pro_arr, ama_arr)
     st.dataframe(dz.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["Delta_Z_Laterality"] = dz
+    tables["무게중심 Z"] = dz
 
     st.divider()
 
     # 5) Summary
-    st.markdown("### Summary (Segments & Totals)")
+    st.markdown("### Summary")
     sm = feat.build_summary_table(pro_arr, ama_arr)
     st.dataframe(sm.style.format({"프로":"{:.2f}","일반":"{:.2f}"}),
                  use_container_width=True)
     st.download_button("CSV 내려받기 (Summary)", sm.to_csv(index=False).encode("utf-8-sig"),
                        "center_move_summary.csv", "text/csv", key="cm_summary")
-    tables["Summary_Segments_Totals"] = sm
+    tables["Summary"] = sm
 
     # ── Part Movement ────────────────────────────────────────────
     st.divider()
@@ -159,52 +162,53 @@ def run(ctx=None):
     st.subheader("Total Move (abs sum)")
     tm = move.build_total_move(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tm.style.format({c:"{:.2f}" for c in tm.columns if c!="구간"}), use_container_width=True)
-    tables["Total_Move_abs_sum"] = tm
+    tables["신체분절 구간별 총 이동크기"] = tm
 
     st.divider()
     st.subheader("Move Ratio (%)")
     tr = move.build_total_move_ratio(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tr.style.format({c:"{:.2f}" for c in tr.columns if c!="구간"}), use_container_width=True)
-    tables["Move_Ratio_percent"] = tr
+    tables["신체분절 이동 비율표"] = tr
 
     # ── 1-10 Abs Move & X/Y Report ───────────────────────────────
     st.divider()
-    st.subheader("1-10 Abs Move (Σ|Δ|)")
+    st.subheader("z축 변화량 최종표")
     dfz = zmove.build_z_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfz, use_container_width=True)
-    tables["AbsMove_1_10_SumAbsDelta"] = dfz
+    tables["z축 변화량 최종표"] = dfz
 
     st.divider()
-    st.markdown("### X Report")
+    st.markdown("### X 축 변화량 최종표")
     dfx = zmove.build_x_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfx, use_container_width=True)
-    tables["X_Report"] = dfx
+    tables["X축 변화량 최종표"] = dfx
 
     st.divider()
-    st.markdown("### Y Report")
+    st.markdown("### Y 축 변화량 전체표")
     dfy = zmove.build_y_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfy, use_container_width=True)
-    tables["Y_Report"] = dfy
+    tables["Y축 변화량 최종표"] = dfy
 
     # ── Tilt / Speed ─────────────────────────────────────────────
-    st.subheader("Tilt Report (per frame)")
+    st.subheader("골반 어깨 좌우 높이 차이 및 속도와 힘")
     df_tilt = speed.compute_tilt_report(pro_arr, ama_arr, "Pro", "Ama")
-    st.dataframe(df_tilt, use_container_width=True)
-    tables["Tilt_Report_per_frame"] = df_tilt
+    st.dataframe(df_tilt.style.format({c:"{:.2f}" for c in df_tilt.columns if c!="Frame"}),
+                    use_container_width=True)
+    tables["골반 어깨 좌우 높이 차이 및 속도와 힘"] = df_tilt
 
     st.divider()
-    st.subheader("Δθ Summary (Σ over segments)")
+    st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
     df_delta = speed.build_tilt_delta_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_delta.style.format({c:"{:.2f}" for c in df_delta.columns if c!="구간"}),
                  use_container_width=True)
-    tables["DeltaTheta_Summary_sum_segments"] = df_delta
+    tables["골반 및 어깨 좌우 높이 차이와 속도, 힘"] = df_delta
 
     st.divider()
-    st.subheader("Speed Summary (avg over segments)")
+    st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
     df_speed = speed.build_tilt_speed_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_speed.style.format({c:"{:.2f}" for c in df_speed.columns if c!="구간"}),
                  use_container_width=True)
-    tables["Speed_Summary_avg_segments"] = df_speed
+    tables["골반 및 어깨 좌우 높이 차이와 속도, 힘"] = df_speed
 
     # ─────────────────────────────────────────────────────────────
     # 2) 섹션 단일 시트 엑셀 다운로드 + 마스터 합본 등록

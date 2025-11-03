@@ -157,15 +157,42 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
                 df.at[r, pro_col] = f"{p:+.2f}"
                 df.at[r, col]     = f"{a:+.2f}!" if p * a < 0 else f"{a:+.2f}"
 
-    # Total 행은 보기 좋게 포맷만
-    total_row = len(df) - 1
-    for col in df.columns:
-        if col == "Frame":
-            continue
+    def _fmt2(x):
+        # 이미 '...!' 형태면 느낌표 유지한 채 숫자만 두 자리 보정
+        if isinstance(x, str) and x.endswith('!'):
+            s = x[:-1]
+            try:
+                v = float(s)
+                # s가 이미 +/− 부호 포함했는지 판단
+                if s.startswith(('+', '-')):
+                    return f"{v:+.2f}!"
+                else:
+                    return f"{v:.2f}!"
+            except Exception:
+                return x
+        # 이미 문자열(예: "+1.23")이면 숫자만 두 자리 보정
+        if isinstance(x, str):
+            try:
+                v = float(x)
+                if x.startswith(('+', '-')):
+                    return f"{v:+.2f}"
+                else:
+                    return f"{v:.2f}"
+            except Exception:
+                return x
+        # 숫자면 두 자리 고정
+        if x is None or (isinstance(x, float) and np.isnan(x)):
+            return ""
         try:
-            df.at[total_row, col] = f"{float(df.at[total_row, col]):.2f}"
+            return f"{float(x):.2f}"
         except Exception:
-            pass
+            return x
+
+    for r in range(len(df)):
+        for c in df.columns:
+            if c == "Frame":
+                continue
+            df.at[r, c] = _fmt2(df.at[r, c])
 
     return df
 
