@@ -110,7 +110,10 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
         ])
     df = pd.DataFrame(rows, columns=["Frame","pro_X","pro_Y","pro_Z","ama_X","ama_Y","ama_Z","Diff_X","Diff_Y","Diff_Z"])
 
+    # 프레임 인덱스 맵
     idx = {name:i for i,name in enumerate(FRAMES)}
+
+    # 요약 1-4 / 4-7 / 7-9 (절대합)
     segs = {
         "요약 1-4": [idx["BH"], idx["BH2"], idx["TOP"]],
         "요약 4-7": [idx["TR"], idx["DH"], idx["IMP"]],
@@ -118,9 +121,9 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     }
 
     def abs_sum_rows(rows_idx: List[int]) -> List[str]:
-        R = np.nansum(np.abs(F_r[rows_idx]), axis=0)
-        H = np.nansum(np.abs(F_h[rows_idx]), axis=0)
-        D = np.abs(R - H)
+        R = np.nansum(np.abs(F_r[rows_idx]), axis=0)  # pro XYZ |.| 합
+        H = np.nansum(np.abs(F_h[rows_idx]), axis=0)  # ama XYZ |.| 합
+        D = np.abs(R - H)                              # (차이의 절대값) = |Σ|pro| - Σ|ama||
         return [fmt(R[0]), fmt(R[1]), fmt(R[2]),
                 fmt(H[0]), fmt(H[1]), fmt(H[2]),
                 fmt(D[0]), fmt(D[1]), fmt(D[2])]
@@ -140,12 +143,23 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     ratio = (opposite/total) if total else 0.0
     df.loc[len(df)] = ["부호반대비율", fmt(ratio), "", "", "", "", "", "", "", ""]
 
-    # 고정 요약(절대합): 1-7, 1-9
-    seg_1_7 = [idx["BH"], idx["BH2"], idx["TOP"], idx["TR"], idx["DH"], idx["IMP"]]
-    seg_1_9 = seg_1_7 + [idx["FH1"], idx["FH2"]]
+    # ✅ 요청한 2줄 추가: 1-7, 1-9 (절대값 합산)
+    seg_1_7 = [idx["BH"], idx["BH2"], idx["TOP"], idx["TR"], idx["DH"], idx["IMP"]]        # 2(BH)~7(IMP)
+    seg_1_9 = seg_1_7 + [idx["FH1"], idx["FH2"]]                                            # 2(BH)~9(FH2)
     df.loc[len(df)] = ["1-7"] + abs_sum_rows(seg_1_7)
     df.loc[len(df)] = ["1-9"] + abs_sum_rows(seg_1_9)
+
+    # ✅ 한 줄 더: 2~9행(X+Y+Z) 총합을 단일 값으로(프로/일반/차이)
+    R_vec = np.nansum(np.abs(F_r[seg_1_9]), axis=0)   # pro의 [Σ|X|, Σ|Y|, Σ|Z|]
+    H_vec = np.nansum(np.abs(F_h[seg_1_9]), axis=0)   # ama의 [Σ|X|, Σ|Y|, Σ|Z|]
+    R_xyz = float(np.nansum(R_vec))                   # pro XYZ 총합(스칼라)
+    H_xyz = float(np.nansum(H_vec))                   # ama XYZ 총합(스칼라)
+    D_xyz = abs(R_xyz - H_xyz)                        # 총합 차이(스칼라)
+
+    # 스칼라를 X열에만 배치하고 나머지 축 칸은 공란으로 둠
+    df.loc[len(df)] = ["1-9 XYZ", fmt(R_xyz), "", "", fmt(H_xyz), "", "", fmt(D_xyz), "", ""]
     return df
+
 
 def _mk_opposite_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     rows = []

@@ -1,7 +1,8 @@
 # sections/forces/main.py
 from __future__ import annotations
 import streamlit as st
-import re, io
+import re
+import io
 import pandas as pd
 
 from .features import _1power as fc   # Force
@@ -28,26 +29,22 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
     title_fmt  = wb.add_format({'bold': True, 'font_size': 12})
     header_fmt = wb.add_format({'bold': True, 'bg_color': '#F2F2F2', 'border': 1})
 
-    # 빈 시트를 먼저 만들어 워크시트 핸들을 확보
+    # 빈 시트 확보
     pd.DataFrame().to_excel(writer, sheet_name=sheet_name, index=False)
     ws = writer.sheets[sheet_name]
 
     cur_row = 0
     for name, df in tables.items():
-        # 제목
         ws.write(cur_row, 0, str(name), title_fmt)
         cur_row += 1
 
-        # 본문
         df.to_excel(writer, sheet_name=sheet_name, startrow=cur_row, startcol=0, index=False, header=True)
 
-        # 헤더/숫자 포맷 + 열 너비
         n_rows, n_cols = df.shape
         for c in range(n_cols):
             ws.write(cur_row, c, df.columns[c], header_fmt)
         ws.set_column(0, max(0, n_cols-1), 14, num_fmt)
 
-        # 다음 표 간 간격 2줄
         cur_row += n_rows + 1 + 2
 
 def register_section(section_id: str, section_title: str, tables: dict[str, pd.DataFrame]):
@@ -60,7 +57,6 @@ def register_section(section_id: str, section_title: str, tables: dict[str, pd.D
 META = {"id": "forces", "title": "12. 힘/토크 비교", "icon": "🧲", "order": 15}
 def get_metadata(): return META
 
-# 표기 라벨
 _FORCE_PARTS = [
     ("knee", "무릎"),
     ("pelvis", "골반"),
@@ -74,97 +70,52 @@ _TORQUE_PARTS = [
     ("shoulder", "어깨"),
 ]
 
-# ───────────────────────── UI / 메인 로직 ─────────────────────────
+# ───────────────────────── 메인: UI 없이 표만 출력 ─────────────────────────
 def run(ctx=None):
     st.subheader(f"{META['icon']} {META['title']}")
     if not ctx or ctx.get("pro_arr") is None or ctx.get("ama_arr") is None:
-        st.info("메인에서 프로/일반 엑셀을 업로드하면 여기에서 표가 생성됩니다.")
+        st.info("메인에서 프로/일반 엑셀을 업로드하면 표가 생성됩니다.")
         return
 
     pro_arr = ctx["pro_arr"]
     ama_arr = ctx["ama_arr"]
+    # ctx에 mass가 있으면 사용, 없으면 60.0kg
+    mass = float(ctx.get("mass", 60.0))
 
-    # 전역 설정: 질량만 받기 (요약은 abs-sum 고정)
-    mass = st.number_input("질량(kg)", min_value=1.0, max_value=200.0, value=60.0, step=1.0)
-
-    # 섹션 전체를 엑셀 한 시트로 저장하기 위해 표를 모아둘 dict
+    # 섹션 시트 병합용 표 수집
     section_tables: dict[str, pd.DataFrame] = {}
 
-    # ───────── Force (모든 부위) ─────────
-    st.markdown("## 🧠 힘(Force) 비교 — 모든 부위")
+    # ── Force 표들 (순서대로 쭉 출력) ──
     for part, label in _FORCE_PARTS:
-        with st.expander(f"🔹 {label} — Force", expanded=False):
-            try:
-                res = fc.build_all_tables(pro_arr, ama_arr, part=part, mass=mass)
+        try:
+            res = fc.build_all_tables(pro_arr, ama_arr, part=part, mass=mass)
+            st.markdown(f"### Force — {label}")
+            st.dataframe(res.table_main, use_container_width=True)
+            section_tables[f"Force/{label} - Main"] = res.table_main
 
-                title_main = f"Force/{label} - Main"
-                title_opp  = f"Force/{label} - Opposite-sign only"
-                title_top3 = f"Force/{label} - Same-sign Top3(|Diff|)"
+            st.dataframe(res.table_opposite, use_container_width=True)
+            section_tables[f"Force/{label} - Opposite-sign"] = res.table_opposite
 
-                st.markdown("**표 1. 전체 힘 비교표 (요약·지표 포함)**")
-                st.dataframe(res.table_main, use_container_width=True)
-                section_tables[title_main] = res.table_main
+            st.dataframe(res.table_same_top3, use_container_width=True)
+            section_tables[f"Force/{label} - Same-sign Top3"] = res.table_same_top3
+        except Exception as e:
+            st.warning(f"{label} Force 계산 중 오류: {e}")
 
-                st.markdown("**표 2. 부호 반대 항목만 (차이 큰 순, 요약 제외)**")
-                st.dataframe(res.table_opposite, use_container_width=True)
-                section_tables[title_opp] = res.table_opposite
-
-                st.markdown("**표 3. 부호 같고 차이 큰 상위 3 (xyz 무구분, 요약 제외)**")
-                st.dataframe(res.table_same_top3, use_container_width=True)
-                section_tables[title_top3] = res.table_same_top3
-
-            except Exception as e:
-                st.warning(f"{label} Force 계산 중 오류: {e}")
-
-    # ───────── Torque (무릎/골반/어깨, 요약=abs-sum 고정) ─────────
-    st.divider()
-    st.markdown("## 🔧 토크(Torque) 비교 — 무릎/골반/어깨")
-
+    # ── Torque 표들 (순서대로 쭉 출력, 요약=abs-sum 고정) ──
     for part, label in _TORQUE_PARTS:
-        with st.expander(f"🔹 {label} — Torque", expanded=False):
-            try:
-                # 요약 방식 선택 제거, 내부는 abs-sum 고정 구현판을 사용
-                tres = fc2.build_torque_tables(pro_arr, ama_arr, part=part, mass=mass)
+        try:
+            tres = fc2.build_torque_tables(pro_arr, ama_arr, part=part, mass=mass)
+            st.markdown(f"### Torque — {label}")
+            st.dataframe(tres.table_main, use_container_width=True)
+            section_tables[f"Torque/{label} - Main"] = tres.table_main
 
-                title_main = f"Torque/{label} - Main"
-                title_opp  = f"Torque/{label} - Opposite-sign only"
-                title_top3 = f"Torque/{label} - Same-sign Top3(|Diff|)"
+            st.dataframe(tres.table_opposite, use_container_width=True)
+            section_tables[f"Torque/{label} - Opposite-sign"] = tres.table_opposite
 
-                st.markdown("**표 1. 전체 토크 비교표 (요약·지표 포함)**")
-                st.dataframe(tres.table_main, use_container_width=True)
-                section_tables[title_main] = tres.table_main
+            st.dataframe(tres.table_same_top3, use_container_width=True)
+            section_tables[f"Torque/{label} - Same-sign Top3"] = tres.table_same_top3
+        except Exception as e:
+            st.warning(f"{label} Torque 계산 중 오류: {e}")
 
-                st.markdown("**표 2. 부호 반대 항목만 (차이 큰 순, 요약 제외)**")
-                st.dataframe(tres.table_opposite, use_container_width=True)
-                section_tables[title_opp] = tres.table_opposite
-
-                st.markdown("**표 3. 부호 같고 차이 큰 상위 3 (xyz 무구분, 요약 제외)**")
-                st.dataframe(tres.table_same_top3, use_container_width=True)
-                section_tables[title_top3] = tres.table_same_top3
-
-            except Exception as e:
-                st.warning(f"{label} Torque 계산 중 오류: {e}")
-
-    # ───────── 이 섹션 전용 엑셀(단일 시트) 다운로드 + 마스터 등록 ─────────
-    st.divider()
-    st.subheader("📦 Forces 섹션 다운로드 / 마스터 병합 등록")
-
-    xbuf = io.BytesIO()
-    with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
-        used = set()
-        sheet_name = _safe_sheet("Forces", used)
-        _write_section_sheet(writer, sheet_name, section_tables)
-    xbuf.seek(0)
-
-    st.download_button(
-        "⬇️ Excel 내려받기 (Forces 섹션 – 단일 시트)",
-        data=xbuf.getvalue(),
-        file_name="forces_section.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-        key="dl_forces_section",
-    )
-
-    # 마스터 병합용으로 현재 섹션 표들을 세션에 등록
+    # 마스터 병합 등록 (별도 다운로드 UI 제거)
     register_section(META["id"], META["title"], section_tables)
-    st.success("이 섹션의 표들을 마스터 병합 목록에 등록했습니다. (메인에서 전체 합치기 버튼으로 병합 가능)")

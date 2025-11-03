@@ -116,6 +116,7 @@ def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
         return [fmt(R[0]), fmt(R[1]), fmt(R[2]),
                 fmt(H[0]), fmt(H[1]), fmt(H[2]),
                 fmt(D[0]), fmt(D[1]), fmt(D[2])]
+
     for title, idxs in segs.items():
         df.loc[len(df)] = [title] + abs_sum_rows(idxs)
 
@@ -130,7 +131,27 @@ def _mk_main_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
                 opposite += 1
     ratio = (opposite/total) if total else 0.0
     df.loc[len(df)] = ["부호반대비율", fmt(ratio), "", "", "", "", "", "", "", ""]
+
+    # ✅ 추가 1: 1-7 (BH~IMP) 절대합 요약
+    seg_1_7 = [0,1,2,3,4,5]          # BH..IMP
+    df.loc[len(df)] = ["1-7"] + abs_sum_rows(seg_1_7)
+
+    # ✅ 추가 2: 1-9 (BH~FIN) 절대합 요약
+    seg_1_9 = [0,1,2,3,4,5,6,7,8]    # BH..FIN
+    df.loc[len(df)] = ["1-9"] + abs_sum_rows(seg_1_9)
+
+    # ✅ 추가 3: 1-9 XYZ — BH~FIN의 X+Y+Z 절대합을 축 합계로 스칼라 표시
+    R_vec = np.nansum(np.abs(T_r[seg_1_9]), axis=0)  # [Σ|X|, Σ|Y|, Σ|Z|]
+    H_vec = np.nansum(np.abs(T_h[seg_1_9]), axis=0)
+    R_xyz = float(np.nansum(R_vec))                  # 프로 XYZ 합(스칼라)
+    H_xyz = float(np.nansum(H_vec))                  # 일반 XYZ 합(스칼라)
+    D_xyz = abs(R_xyz - H_xyz)
+
+    # 스칼라는 X열에만 배치하고 나머지 축 칸은 공란
+    df.loc[len(df)] = ["1-9 XYZ", fmt(R_xyz), "", "", fmt(H_xyz), "", "", fmt(D_xyz), "", ""]
+
     return df
+
 
 def _mk_opposite_table_tau(T_r: np.ndarray, T_h: np.ndarray) -> pd.DataFrame:
     rows = []

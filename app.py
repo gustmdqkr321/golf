@@ -496,7 +496,8 @@ _orig_dataframe = st.dataframe  # 백업
 
 def _build_sign_and_diff_styles(
     df: pd.DataFrame,
-    pair_rules=(("프로", "일반"), ("Pro", "Ama")),
+    pair_rules=(("프로", "일반"), ("Pro", "Ama"),("pro_", "ama_"),
+        ("Pro_", "Ama_"),),
     red="#FFC7CE",
     yellow="#FFEB9C",
     percent_threshold: float = 0.30,
