@@ -125,7 +125,7 @@ def build_gs_club_table(gs_pro_df, gs_ama_df, base_pro_arr, base_ama_arr, origin
             try:    a = eval_expr_base(base_ama_arr, expr)
             except: a = float("nan")
 
-        rows.append([label, expr, p, a, (p - a), "", ""])  # 분류 칼럼 2개 추가
+        rows.append([label, p, a, (p - a), "", ""])  # 분류 칼럼 2개 추가
 
         if expr == "B9":  cp_pro,  cp_ama  = p, a
         if expr == "B11": f2p_pro, f2p_ama = p, a
@@ -134,9 +134,9 @@ def build_gs_club_table(gs_pro_df, gs_ama_df, base_pro_arr, base_ama_arr, origin
     shape_pro = _classify_ball_flight_shape(cp_pro,  f2p_pro)
     shape_ama = _classify_ball_flight_shape(cp_ama,  f2p_ama)
     import numpy as np
-    rows.append(["Ball Flight Shape", "B9/B11 → 조건", np.nan, np.nan, np.nan, shape_pro, shape_ama])
+    rows.append(["Ball Flight Shape", np.nan, np.nan, np.nan, shape_pro, shape_ama])
 
     return pd.DataFrame(
         rows,
-        columns=["항목","셀/식","프로","일반","차이(프로-일반)","프로 분류","일반 분류"]
+        columns=["항목","프로","일반","차이(프로-일반)","프로 분류","일반 분류"]
     )
