@@ -25,6 +25,7 @@ def _safe_sheet(name: str, used: set[str]) -> str:
         i += 1
     used.add(s); 
     return s
+   
 def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[str, pd.DataFrame]):
     wb = writer.book
     num_fmt    = wb.add_format({'num_format': '0.00'})
@@ -546,7 +547,9 @@ def _apply_highlight_to_styler(styler: Styler, **opts) -> Styler:
     if isinstance(df, pd.DataFrame):
         styles = _build_sign_and_diff_styles(df, **opts)
         styler = styler.apply(lambda _df: styles, axis=None)
-
+    
+    styler = styler.hide(axis="index")
+    
     # 가독성 테이블 스타일(선택)
     styler = styler.set_table_styles([
         {'selector': 'table', 'props': [('border-collapse', 'collapse'), ('width', '100%')]},

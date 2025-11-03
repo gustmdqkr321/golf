@@ -16,6 +16,7 @@ def set_gs_offset(row_offset: int = 0, col_offset: int = 0) -> None:
     GS_ROW_OFFSET = int(row_offset)
     GS_COL_OFFSET = int(col_offset)
 
+
 # ──────────────────────────────────────────────────────────────────────
 # 공통 유틸
 # ──────────────────────────────────────────────────────────────────────
@@ -172,6 +173,7 @@ def build_delta_x_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
         "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
+    df.insert(0, "seg", df.index.astype(str))
     return df
 
 
@@ -218,6 +220,7 @@ def build_delta_y_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
         "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
+    df.insert(0, "seg", df.index.astype(str))
     return df
 
 
@@ -264,6 +267,7 @@ def build_delta_z_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
         "일반 diff": ama_diff_col,
     }, index=idx)
     df.index.name = "Frame"
+    df.insert(0, "seg", df.index.astype(str))
     return df
 
 
@@ -321,17 +325,19 @@ def build_smdi_mrmi_table(
 
     scores = {ax: safe_score(ama_tot[ax], pro_tot[ax]) for ax in ["X", "Y", "Z"]}
     smdi = round(float(np.nanmean([scores["X"], scores["Y"], scores["Z"]])), 2)
-
+    
     # 행: Metric, 열: Pro/Ama (가로로 Pro/Ama 표기)
     rows = [
         ("SMDI",  100.0, smdi),
         ("MRMI X", 0.0,  mrmi["X"]),
         ("MRMI Y", 0.0,  mrmi["Y"]),
         ("MRMI Z", 0.0,  mrmi["Z"]),
+
     ]
     df = pd.DataFrame(rows, columns=["Metric", pro_label, ama_label]).set_index("Metric")
     # 숫자 보장
     df[pro_label] = pd.to_numeric(df[pro_label], errors="coerce")
     df[ama_label] = pd.to_numeric(df[ama_label], errors="coerce")
+
     return df
 

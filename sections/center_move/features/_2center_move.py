@@ -181,6 +181,8 @@ def _delta_rows_table(
 
     for col in mov.columns:
         mov[col] = mov[col].map(_fmt2)
+    mov.insert(0, "seg", mov.index.astype(str))
+    
     return mov
 
 
