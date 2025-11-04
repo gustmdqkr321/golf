@@ -51,46 +51,66 @@ def build_rolling_summary_table(pro_arr: np.ndarray, ama_arr: np.ndarray, alpha:
     # 시퀀스
     w_p, e_p = _wrist(pro_arr), _elbow(pro_arr)
     w_a, e_a = _wrist(ama_arr), _elbow(ama_arr)
+    # 어깨(Y): AM - BB
+    s_p = [g(pro_arr, f"AM{n}") - g(pro_arr, f"BB{n}") for n in range(1,10)]
+    s_a = [g(ama_arr, f"AM{n}") - g(ama_arr, f"BB{n}") for n in range(1,10)]
+
     pr_p, pr_a = _pure_rolling(w_p, e_p), _pure_rolling(w_a, e_a)
 
     rows = []
     for i, name in enumerate(labels):
-        rows.append([name, w_p[i], w_a[i], pr_p[i], pr_a[i], np.nan])  # 본문 행(유사도 칸은 공란)
+        rows.append([
+            name,
+            w_p[i], w_a[i],               # 손목
+            e_p[i], e_a[i],               # 팔꿈치
+            s_p[i], s_a[i],               # 어깨
+            pr_p[i], pr_a[i],             # 순수롤링
+            np.nan                        # 유사도(본문행은 공란)
+        ])
 
-    # 구간 합(순수롤링만)
+    # ── 구간 합(순수롤링만 기존대로 유지) ─────────────────────────────
     s14_p, s47_p, s79_p = _segment_sums(pr_p)
     s14_a, s47_a, s79_a = _segment_sums(pr_a)
     diff17_p, diff17_a  = _cocking_maint(s14_p, s47_p), _cocking_maint(s14_a, s47_a)
 
     rows += [
-        ["1-4", np.nan, np.nan, s14_p,    s14_a,    np.nan],
-        ["4-7", np.nan, np.nan, s47_p,    s47_a,    np.nan],
-        ["7-9", np.nan, np.nan, s79_p,    s79_a,    np.nan],
-        ["1-7", np.nan, np.nan, diff17_p, diff17_a, np.nan],
+        ["1-4", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, s14_p,    s14_a,    np.nan],
+        ["4-7", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, s47_p,    s47_a,    np.nan],
+        ["7-9", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, s79_p,    s79_a,    np.nan],
+        ["1-7", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, diff17_p, diff17_a, np.nan],
     ]
 
+    # ── 변동/표준편차(기존 로직: 손목/순수롤링만) ───────────────────────
+    dw_p, dw_a = np.diff(w_p), np.diff(w_a)
+    std_wp, std_wa = float(np.nanstd(dw_p)), float(np.nanstd(dw_a))
+    std_pp, std_pa = float(np.nanstd(pr_p)), float(np.nanstd(pr_a))
+    rows.append(["STD", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, std_pp, std_pa, np.nan])
+    # 필요하면 위 줄을 wrist/elbow/shoulder용 STD까지 확장 가능
 
-    dw_p = np.diff(w_p)        # 길이 8
-    dw_a = np.diff(w_a)
-    # 표준편차(손목/순수롤링 모두)
-    std_wp, std_wa = float(np.nanstd(dw_p)),  float(np.nanstd(dw_a))
-    std_pp, std_pa = float(np.nanstd(pr_p)),  float(np.nanstd(pr_a))
-    rows.append(["STD", std_wp, std_wa, std_pp, std_pa, np.nan])
-
-    # Total Δ (네 개 다)
     total_wp = float(np.nansum(np.abs(dw_p)))
     total_wa = float(np.nansum(np.abs(dw_a)))
     total_pp = float(np.nansum(np.abs(np.asarray(pr_p)[1:])))  # NaN(ADD) 제외
     total_pa = float(np.nansum(np.abs(np.asarray(pr_a)[1:])))
-    rows.append(["Total Δ", total_wp, total_wa, total_pp, total_pa, np.nan])
+    rows.append(["Total Δ", total_wp, total_wa, np.nan, np.nan, np.nan, np.nan, total_pp, total_pa, np.nan])
 
-    # 유사도(순수롤링 기준)
+    # ── 유사도(순수롤링 기준) ─────────────────────────────────────────
     mask = (~np.isnan(pr_p)) & (~np.isnan(pr_a))
     sim = rolling_sim(np.asarray(pr_p)[mask], np.asarray(pr_a)[mask], alpha=alpha)
-    rows.append(["Similarity(%)", np.nan, np.nan, np.nan, np.nan, sim])
+    rows.append(["Similarity(%)", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, sim])
 
-    df = pd.DataFrame(rows, columns=["구간","손목(프로)","손목(일반)","순수롤링(프로)","순수롤링(일반)","유사도(%)"])
-    # 숫자형으로 캐스팅(스타일링 오류 방지)
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "구간",
+            "손목(프로)", "손목(일반)",
+            "팔꿈치(프로)", "팔꿈치(일반)",
+            "어깨(프로)", "어깨(일반)",
+            "순수롤링(프로)", "순수롤링(일반)",
+            "유사도(%)",
+        ],
+    )
+
+    # 숫자형 캐스팅
     for c in df.columns[1:]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df

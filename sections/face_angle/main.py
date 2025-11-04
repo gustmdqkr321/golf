@@ -101,7 +101,7 @@ def run(ctx=None):
     st.subheader("Face Angle (Summary)")
     st.dataframe(df_face.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
                  use_container_width=True)
-    tables["1_Face_Angle"] = df_face
+    tables["1_Basic Data"] = df_face
 
     # 2. Rolling
     st.divider(); st.subheader("Rolling")
@@ -114,7 +114,7 @@ def run(ctx=None):
         }, na_rep=""),
         use_container_width=True
     )
-    tables["2_Rolling"] = df_roll
+    tables["2.Wrist Rolling Angle"] = df_roll
 
     # 3. 3D Cocking
     st.divider(); st.subheader("3D Cocking")
@@ -170,7 +170,7 @@ def run(ctx=None):
         }),
         use_container_width=True,
     )
-    tables["7_Tilt"] = df_tilt
+    tables["7_Clubface : open/close(Heel/Toe Tilt) "] = df_tilt
 
     # 8. CLUB: (-) CLOSE, (+) OPEN
     st.divider(); st.subheader("CLUB  : (-): CLOSE, (+) : OPEN")

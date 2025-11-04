@@ -83,13 +83,13 @@ def _tilt_similarity(pro_seq, ama_seq, alpha: float = 2.0, scale: float = 90.0) 
 # ── Pro/Ama 비교표 + 유사도 ───────────────────────────────────────────
 def build_tilt_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     """
-    index: Frame 1..9 + 마지막 'Similarity'
-    columns: ["Pro Tilt (°)", "Ama Tilt (°)", "Diff (Pro-Ama)", "Similarity (%)"]
-    - 유사도는 마지막 행에 1개 숫자로 표기, 나머지 컬럼은 NaN
+    index: Frame 1..9 + '6/7' + 'Similarity'
+    columns: ["frame", "Pro Tilt (°)", "Ama Tilt (°)", "Similarity (%)"]
+    - '6/7' 행에는 7번값-6번값을 넣는다.
+    - 유사도는 마지막 행에만 넣는다.
     """
-    pro  = compute_tilt_angles_from_array(pro_arr)
+    pro  = compute_tilt_angles_from_array(pro_arr)   # 길이 9, 인덱스 0..8 => 1..9 frame
     ama  = compute_tilt_angles_from_array(ama_arr)
-    diff = [round(p - a, 2) for p, a in zip(pro, ama)]
     sim  = _tilt_similarity(pro, ama, alpha=2.0, scale=90.0)
 
     frames = [f"{i} Frame" for i in range(1, 10)]
@@ -98,10 +98,17 @@ def build_tilt_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.Dat
             "frame": frames,
             "Pro Tilt (°)"   : pro,
             "Ama Tilt (°)"   : ama,
-            "Similarity (%)" : [np.nan]*9,   # 본문 행은 NaN
-        },
-        
+            "Similarity (%)" : [np.nan]*9,
+        }
     )
-    # 마지막 행: 유사도
-    df.loc["Similarity"] = ["sim",np.nan, np.nan, sim]
+
+    # ── 6/7 행 추가 (7번값 - 6번값) ─────────────────────────
+    # pro[5] → 6번 프레임, pro[6] → 7번 프레임
+    pro_6_7 = float(np.round(pro[6] - pro[5], 2))
+    ama_6_7 = float(np.round(ama[6] - ama[5], 2))
+    df.loc["6/7"] = ["6/7", pro_6_7, ama_6_7, np.nan]
+
+    # ── 마지막 Similarity 행 ───────────────────────────────
+    df.loc["Similarity"] = ["Similarity", np.nan, np.nan, sim]
+
     return df
