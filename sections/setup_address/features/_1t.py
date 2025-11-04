@@ -87,12 +87,12 @@ def build_grip_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame
 # ─────────────────────────────────────────────────────────────────────────────
 def build_posture_all_table(arr: np.ndarray, row: int = 1) -> pd.DataFrame:
     rows: List[List] = [
-        ["X", "1. ANK/KNE", "CK1 - CB1", eval_expr(arr, "CK1 - CB1")],
-        ["X", "2. ANK/WAI", "CK1 - K1",  eval_expr(arr, "CK1 - K1")],
-        ["X", "3. ANK/SHO", "CK1 - BA1", eval_expr(arr, "CK1 - BA1")],
-        ["X", "4. WAI/SHO", "BA1 - K1",  eval_expr(arr, "BA1 - K1")],
-        ["X", "5. SHO/WRI", "BA1 - BM1", eval_expr(arr, "BA1 - BM1")],
-        ["X", "6. WAI/WRI", "BM1 - K1",  eval_expr(arr, "BM1 - K1")],
+        ["X", "1. ANK/KNE", eval_expr(arr, "CB1 - CK1")],
+        ["X", "2. ANK/WAI",  eval_expr(arr, "CK1 - K1")],
+        ["X", "3. ANK/SHO", eval_expr(arr, "CK1 - BA1")],
+        ["X", "4. WAI/SHO",  eval_expr(arr, "BA1 - K1")],
+        ["X", "5. SHO/WRI", eval_expr(arr, "BM1 - BA1")],
+        ["X", "6. WAI/WRI",  eval_expr(arr, "BM1 - K1")],
 
         # ── [교체된 7~9] ─────────────────────────────────────────────
         # 7) 직각삼각형: AC=K1-BA1, CB=BB1-L1 → ∠ACB (양수)
@@ -139,7 +139,23 @@ def build_posture_all_table(arr: np.ndarray, row: int = 1) -> pd.DataFrame:
         ["Z", "23. L WRI/CLU",
             eval_expr(arr, "CP1 - AZ1")],
     ]
-    df = pd.DataFrame(rows, columns=["축", "검사명", "1 formula", "값"])
+            # build_posture_all_table 내부 (혹은 파일 상단에 함께)
+    def _angle_aw_cw_at(arr: np.ndarray, n: int) -> float:
+        AR, AS, AT = g(arr, f"AR{n}"), g(arr, f"AS{n}"), g(arr, f"AT{n}")
+        AX, AY, AZ = g(arr, f"AX{n}"), g(arr, f"AY{n}"), g(arr, f"AZ{n}")
+        CN, CO, CP = g(arr, f"CN{n}"), g(arr, f"CO{n}"), g(arr, f"CP{n}")
+        v1 = np.array([AR-AX, AS-AY, AT-AZ], dtype=float)
+        v2 = np.array([CN-AX, CO-AY, CP-AZ], dtype=float)
+        n1 = float(np.linalg.norm(v1)); n2 = float(np.linalg.norm(v2))
+        if n1 == 0.0 or n2 == 0.0 or np.isnan(n1) or np.isnan(n2):
+            return float("nan")
+        cosv = float(np.clip(np.dot(v1, v2) / (n1 * n2), -1.0, 1.0))
+        return float(math.degrees(math.acos(cosv)))
+
+    theta1 = _angle_aw_cw_at(arr, 1)  # compute_angles()의 1번 값과 동일
+    rows.append(["-", "24. Cocking Angle", theta1])
+
+    df = pd.DataFrame(rows, columns=["축", "검사명", "값"])
     return df
 
 def build_posture_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
@@ -153,12 +169,11 @@ def build_posture_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFr
     a = build_posture_all_table(ama_arr, row=1)
 
     # 키(축, 검사명, 수식)로 병합 후 컬럼 정리
-    m = p.merge(a, on=["축", "검사명", "1 formula"], suffixes=("·프로", "·일반"))
+    m = p.merge(a, on=["축", "검사명"], suffixes=("·프로", "·일반"))
     m = m.rename(columns={"값·프로": "프로", "값·일반": "일반"})
     m["차이(프로-일반)"] = (m["프로"] - m["일반"]).astype(float)
 
     # 수식 컬럼 숨기기
-    m = m.drop(columns=["1 formula"])
     return m
 
 # =========================
@@ -240,28 +255,29 @@ def _basic_body_values(arr: np.ndarray) -> dict:
 
     # 8) Club : 주어진 AB, AC에서 BC
     ab = abs(eval_expr(arr,"BM1-CN1"))
-    ac = abs(g(arr,"BN1"))
+    ac = abs(eval_expr(arr,"BN1"))
     v8 = _leg_from_hyp(ac, ab)
 
     # 9) Swing Size : 6 + 7 + 8
-    v9  = v6 + v7 + v8
+    v9  = v5 + v6 + v7 + v8
     # 10) Sho Width : |AN1| + |BC1|
     v10 = abs(g(arr,"AN1")) + abs(g(arr,"BC1"))
     # 11) Wai Width : |J1| + |M1|
     v11 = abs(g(arr,"J1")) + abs(g(arr,"M1"))
 
     return {
-        "1) Lower Body (leg)"  : v1,
-        "2) Body(Thigh)"             : v2,
-        "3) Upper Body": v3,
-        "4) Head"      : v4,
-        "5) Height": v5,
-        "6) Upper Arm" : v6,
-        "7) Forearm"   : v7,
-        "8) Club" : v8,
-        "9) Swing Size"  : v9,
-        "10) Sho Width": v10,
-        "11) Wai Width" : v11,
+        "1) Leg"  : v1,
+        "2) Thigh"             : v2,
+        "3) Lower Body" : v1 + v2,
+        "4) Upper Body": v3,
+        "5) Head"      : v4,
+        "6) Height": v5,
+        "7) Upper Arm" : v6,
+        "8) Forearm"   : v7,
+        "9) Club" : v8,
+        "10) Swing Size"  : v9,
+        "11) Sho Width": v10,
+        "12) Wai Width" : v11,
     }
 
 def build_basic_body_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
