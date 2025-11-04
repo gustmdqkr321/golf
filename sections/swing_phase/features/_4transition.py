@@ -75,7 +75,7 @@ _ITEMS: list[tuple[str, str, object]] = [
         {"type":"ang90", "dy":"BB4-BB5", "dx":"BA4-BA5"}),
 
     # SHO/WRI
-    ("SHO/WRI", "L SHO / L WRI X", "AX6 - AL6"),
+    ("SHO/WRI", "L SHO / L WRI X", "AX5 - AL5"),
 
     # WAI (좌·우)
     ("WAI",  "4/5 L WAI X",    "H5 - H4"),

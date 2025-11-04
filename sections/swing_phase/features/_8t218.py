@@ -73,7 +73,7 @@ _ITEMS: list[tuple[str, str, str, str]] = [
     ("ADD/WRI", "L X", "BASE", "AX7 - AX1"),
     ("ADD/WRI", "L Y", "BASE", "AY7 - AY1"),
     ("ADD/WRI", "L Z", "BASE", "AZ7 - AZ1"),
-    ("ADD/WRI", "ADD/Grip", "BASE", "(BN7 - AY7) - (BN1 - AY1)"),
+    ("-", "Grip(ADD/IMP) L/R Y", "BASE", "(BN7 - AY7) - (BN1 - AY1)"),
 
     # ADD / ELB
     ("ADD/ELB", "L X", "BASE", "AR7 - AR1"),
