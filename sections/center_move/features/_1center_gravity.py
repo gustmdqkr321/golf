@@ -107,13 +107,24 @@ def _com_y(arr, n: int) -> float:
     )
 
 def _com_z(arr, n: int) -> float:
-    # ((무릎Z + 힙Z + 가슴Z + 머리Z)/4) - 발 Z
-    knee  = (g_base(arr, f"BR{n}") + g_base(arr, f"CD{n}"))/2
-    hip   = (g_base(arr, f"J{n}")  + g_base(arr, f"M{n}"))/2
-    chest = (g_base(arr, f"AN{n}") + g_base(arr, f"BC{n}"))/2
+    """
+    ΔZ = Z_COM - Z_baseline
+    Z_COM = 0.08*AE
+          + 0.35*((AN+BC)/2)
+          + 0.30*((J+M)/2)
+          + 0.15*((BR+CD)/2)
+          + 0.12*((CA+CM)/2)
+    Z_baseline = (CA+CM)/2
+    """
     head  = g_base(arr, f"AE{n}")
-    foot  = (g_base(arr, f"CA{n}") + g_base(arr, f"CM{n}"))/2
-    return ((knee + hip + chest + head)/4) - foot
+    chest = (g_base(arr, f"AN{n}") + g_base(arr, f"BC{n}")) / 2.0
+    hip   = (g_base(arr, f"J{n}")  + g_base(arr, f"M{n}"))  / 2.0
+    knee  = (g_base(arr, f"BR{n}") + g_base(arr, f"CD{n}")) / 2.0
+    foot  = (g_base(arr, f"CA{n}") + g_base(arr, f"CM{n}")) / 2.0  # baseline
+
+    z_com = 0.08*head + 0.35*chest + 0.30*hip + 0.15*knee + 0.12*foot
+    return float(round(z_com - foot, 6))  # ΔZ만 반환
+
 
 def _series_and_diffs(values: list[float]) -> tuple[list[float], list[float]]:
     vals  = [round(v, 2) for v in values]
@@ -154,7 +165,7 @@ def build_delta_x_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
 
     # 4) 인덱스 구성: 프레임 → 일반합 3개 + Total → 절대값합 3개 + Total
     idx = (
-        [str(i) for i in _FRAMES] +
+        ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"] +
         [lbl for (lbl, _, _) in segs3] + ["Total"] +
         [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
     )
@@ -201,7 +212,7 @@ def build_delta_y_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
     tot_abs_a  = round(float(sum(abs(d) for d in ama_diff[1:] if d is not None)), 2)
 
     idx = (
-        [str(i) for i in _FRAMES] +
+        ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"] +
         [lbl for (lbl, _, _) in segs3] + ["Total"] +
         [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
     )
@@ -248,7 +259,7 @@ def build_delta_z_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFr
     tot_abs_a  = round(float(sum(abs(d) for d in ama_diff[1:] if d is not None)), 2)
 
     idx = (
-        [str(i) for i in _FRAMES] +
+        ["ADD","BH","BH2","TOP","TR","DH","IMP","FH1","FH2","FIN"] +
         [lbl for (lbl, _, _) in segs3] + ["Total"] +
         [f"abs {lbl}" for (lbl, _, _) in segs3] + ["abs Total"]
     )
@@ -336,6 +347,7 @@ def build_smdi_mrmi_table(
     ]
     df = pd.DataFrame(rows, columns=["Metric", pro_label, ama_label]).set_index("Metric")
     # 숫자 보장
+    df.insert(0, "seg", df.index.astype(str))
     df[pro_label] = pd.to_numeric(df[pro_label], errors="coerce")
     df[ama_label] = pd.to_numeric(df[ama_label], errors="coerce")
 

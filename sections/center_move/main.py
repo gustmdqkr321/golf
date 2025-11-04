@@ -102,7 +102,7 @@ def run(ctx=None):
     dx = feat.build_delta_x_table(pro_arr, ama_arr)
     st.dataframe(dx.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["무게중심 X"] = dx
+    tables["Mass Center X"] = dx
 
     st.divider()
 
@@ -111,7 +111,7 @@ def run(ctx=None):
     dy = feat.build_delta_y_table(pro_arr, ama_arr)
     st.dataframe(dy.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["수직중심 Y"] = dy
+    tables["Mass Center Y"] = dy
 
     st.divider()
 
@@ -120,7 +120,7 @@ def run(ctx=None):
     dz = feat.build_delta_z_table(pro_arr, ama_arr)
     st.dataframe(dz.style.format({"프로":"{:.2f}","일반":"{:.2f}","프로 diff":"{:.2f}","일반 diff":"{:.2f}"}),
                  use_container_width=True)
-    tables["무게중심 Z"] = dz
+    tables["Mass Center Z"] = dz
 
     st.divider()
 
@@ -131,7 +131,7 @@ def run(ctx=None):
                  use_container_width=True)
     st.download_button("CSV 내려받기 (Summary)", sm.to_csv(index=False).encode("utf-8-sig"),
                        "center_move_summary.csv", "text/csv", key="cm_summary")
-    tables["Summary"] = sm
+    tables["Mass Center X,Y, Z Summary"] = sm
 
     # ── Part Movement ────────────────────────────────────────────
     st.divider()
@@ -162,53 +162,53 @@ def run(ctx=None):
     st.subheader("Total Move (abs sum)")
     tm = move.build_total_move(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tm.style.format({c:"{:.2f}" for c in tm.columns if c!="구간"}), use_container_width=True)
-    tables["신체분절 구간별 총 이동크기"] = tm
+    tables["Total PartMovement X,Y,Z Sum"] = tm
 
     st.divider()
     st.subheader("Move Ratio (%)")
     tr = move.build_total_move_ratio(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(tr.style.format({c:"{:.2f}" for c in tr.columns if c!="구간"}), use_container_width=True)
-    tables["신체분절 이동 비율표"] = tr
+    tables["Total PartMovement X,Y,Z Sum Percentile"] = tr
 
     # ── 1-10 Abs Move & X/Y Report ───────────────────────────────
     st.divider()
     st.subheader("z축 변화량 최종표")
     dfz = zmove.build_z_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfz, use_container_width=True)
-    tables["z축 변화량 최종표"] = dfz
+    tables["z Change"] = dfz
 
     st.divider()
     st.markdown("### X 축 변화량 최종표")
     dfx = zmove.build_x_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfx, use_container_width=True)
-    tables["X축 변화량 최종표"] = dfx
+    tables["X Change"] = dfx
 
     st.divider()
     st.markdown("### Y 축 변화량 전체표")
     dfy = zmove.build_y_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(dfy, use_container_width=True)
-    tables["Y축 변화량 최종표"] = dfy
+    tables["Y Change"] = dfy
 
     # ── Tilt / Speed ─────────────────────────────────────────────
     st.subheader("골반 어깨 좌우 높이 차이 및 속도와 힘")
     df_tilt = speed.compute_tilt_report(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_tilt.style.format({c:"{:.2f}" for c in df_tilt.columns if c!="Frame"}),
                     use_container_width=True)
-    tables["골반 어깨 좌우 높이 차이 및 속도와 힘"] = df_tilt
+    tables["Tilt of Pelvic and Shoulder and Velocity & Force 1"] = df_tilt
 
     st.divider()
     st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
     df_delta = speed.build_tilt_delta_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_delta.style.format({c:"{:.2f}" for c in df_delta.columns if c!="구간"}),
                  use_container_width=True)
-    tables["골반 및 어깨 좌우 높이 차이와 속도, 힘"] = df_delta
+    tables["Tilt of Pelvic and Shoulder and Velocity & Force 2"] = df_delta
 
     st.divider()
     st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
     df_speed = speed.build_tilt_speed_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(df_speed.style.format({c:"{:.2f}" for c in df_speed.columns if c!="구간"}),
                  use_container_width=True)
-    tables["골반 및 어깨 좌우 높이 차이와 속도, 힘"] = df_speed
+    tables["Tilt of Pelvic and Shoulder and Velocity & Force 3"] = df_speed
 
     # ─────────────────────────────────────────────────────────────
     # 2) 섹션 단일 시트 엑셀 다운로드 + 마스터 합본 등록
