@@ -27,15 +27,16 @@ def _mid_diff(arr: np.ndarray, l1: str, l2: str, r1: str, r2: str, n: int) -> fl
 def _build_compare(
     pro_arr: np.ndarray,
     ama_arr: np.ndarray,
-    mapping: list[tuple[int, str, str, str, str]],
+    mapping: list[tuple[str, str, str, str, str]],
     title: str,
 ) -> pd.DataFrame:
     rows: list[list] = []
+    t = ["Z","X","X","X","X","X","Z","X","X"]
     for n, l1, l2, r1, r2 in mapping:
         p = _mid_diff(pro_arr, l1, l2, r1, r2, n)
         a = _mid_diff(ama_arr, l1, l2, r1, r2, n)
         rows.append([
-            f"{n} Frame",
+            f"{n}({t[n-1]})",
             
             p, a, p - a
         ])

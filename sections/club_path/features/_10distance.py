@@ -69,14 +69,21 @@ def build_ab_distance_compare(
     p = _dists(pro_arr)
     a = _dists(ama_arr)
 
-    df = pd.DataFrame(
-        {"Frame": frames, "프로": p, "일반": a}
-    )
-    # 숫자형 보장 + 반올림(표시는 2자리, dtype은 float 유지)
+    df = pd.DataFrame({"Frame": frames, "프로": p, "일반": a})
     df["프로"]  = pd.to_numeric(df["프로"], errors="coerce").round(2)
     df["일반"]  = pd.to_numeric(df["일반"], errors="coerce").round(2)
-
-    # (선택) 차이 컬럼이 필요하면 추가해도 하이라이트에는 영향 없음
     df["차이(프로-일반)"] = (df["프로"] - df["일반"]).round(2)
 
+    # ── 요약 행: "4/6" = 6번값 - 4번값 ─────────────────────────────
+    # (프레임은 1-based이므로 리스트 인덱스 5와 3을 사용)
+    pro_46 = round(float(p[5] - p[3]), 2)
+    ama_46 = round(float(a[5] - a[3]), 2)
+    diff_46 = round(pro_46 - ama_46, 2)
+
+    df = pd.concat(
+        [df, pd.DataFrame([{"Frame": "4/6", "프로": pro_46, "일반": ama_46, "차이(프로-일반)": diff_46}])],
+        ignore_index=True
+    )
+
     return df
+

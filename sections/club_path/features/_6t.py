@@ -53,9 +53,9 @@ def build_ax_cn_group_6_2_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
         ("2/6 CLUB x",                  "CN6 - CN2"),
         ("2/6 CLUB y",                  "CO6 - CO2"),
         ("2/6 CLUB z",                  "CP6 - CP2"),
-        ("2/6 : WRI/CHD x",     "(CN6-AX6) - (CN2-AX2)"),
-        ("2/6 : WRI/CHD y",     "(CO6-AY6) - (CO2-AY2)"),
-        ("2/6 : WRI/CHD z",     "(CP6-AZ6) - (CP2-AZ2)"),
+        ("2/6 L WRI/CHD x",     "(CN6-AX6) - (CN2-AX2)"),
+        ("2/6 L WRI/CHD y",     "(CO6-AY6) - (CO2-AY2)"),
+        ("2/6 L WRI/CHD z",     "(CP6-AZ6) - (CP2-AZ2)"),
     ]
     rows = []
     for label, expr in items:

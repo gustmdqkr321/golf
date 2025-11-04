@@ -204,14 +204,14 @@ def run(ctx=None):
 
     # ── 1) 이 섹션의 모든 표를 dict로 모으기
     tables: dict[str, pd.DataFrame] = {
-        "Basic": df_all,     # df_gs + df_ag 합친 표
+        "4.2.1 Basic": df_all,     # df_gs + df_ag 합친 표
         "4.2.3 L Wri/ CHD X":            df_cnax,
-        "z축 기준 양 손목 중앙의 수평 회전각":               df_yaw,
-        "z축 기준 양 손목 중앙의 수직 회전각":          df_pitch,
-        "2.2.4.6 BOT SHO/ELB X Z":          df1,
+        "Both Sho Center/Wri. Horizon Rot Ang. Z(Yaw Ang)":               df_yaw,
+        "Both Sho Center/Wri. Vertical Rot Ang. Z(Yaw Ang)":          df_pitch,
+        "2.2.4.6 Both Sho Center/Elb X, Z":          df1,
         "2.2.4.7 BOT SHO CENTER/WRI X,Z":          df2,
         "4.2.7 Short Sho Back Turn": df_bc,
-        "4.2.8 Downswing path compared to backswing": df_grp,
+        "4.2.8 Backswing/ Downswing path": df_grp,
         "4.2.9 Swing Plane":         df3,
         "4.2.4 Elbow/Wrist X":       stbl.build_cmp_ax_ar__bm_bg(base_pro, base_ama),
         "4.2.5 Shoulder/Elbow X":    stbl.build_cmp_ar_al__bg_ba(base_pro, base_ama),
@@ -219,7 +219,7 @@ def run(ctx=None):
         "2.2.4.8 R SHO/WRI X,Z":     df_rws,
         "2.2.4.9 Shoulder/Elbow X (L)": df_L,
         "2.2.4.9 Shoulder/Elbow X (R)": df_R,
-        "양 어깨 중심 축과 양 손목 중심 간의 거리": df_cmp,
+        "Sho Center/Wri Center Distance": df_cmp,
     }
 
     # (옵션) 미리보기

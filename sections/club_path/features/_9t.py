@@ -49,10 +49,11 @@ def build_r_wrist_shoulder_x_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> 
         9: "BM9 - BA9",
     }
     rows: list[list] = []
+    t = ["Z","X","X","X","X","X","Z","X","X"]
     for fr, expr in mapping.items():
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append([str(fr)+"Frame",p, a, p - a])
+        rows.append([f"{fr}({t[fr-1]})",p, a, p - a])
     return pd.DataFrame(rows, columns=["Frame", "프로", "일반", "차이(프로-일반)"])
 
 # ── 표 2: Shoulder / Elbow (X) ──────────────────────────────────────────
