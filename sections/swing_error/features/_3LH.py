@@ -98,18 +98,72 @@ def build_leg_hinge_compare(pro_arr: np.ndarray, ama_arr: np.ndarray,
 
     # 정렬키
     def _ord_key(s: str) -> int:
-        if s.startswith("Backswing"): return 101
-        if s.startswith("Downswing"): return 102
-        if s.startswith("Total"):     return 103
-        try: return int(str(s).split()[0])
-        except: return 999
+        if str(s).startswith("Backswing"): return 101
+        if str(s).startswith("Downswing"): return 102
+        if str(s).startswith("Total"):     return 103
+        try:
+            return int(str(s).split()[0])
+        except:
+            return 999
 
     p["_ord"] = p["Frame"].map(_ord_key)
 
-    df = p.merge(a, on="Frame", how="outer").sort_values("_ord", kind="stable").drop(columns="_ord").reset_index(drop=True)
+    df = (
+        p.merge(a, on="Frame", how="outer")
+         .sort_values("_ord", kind="stable")
+         .drop(columns="_ord")
+         .reset_index(drop=True)
+    )
 
     # 차이(프로-일반)
-    def _sub(x, y): return np.nan if (pd.isna(x) or pd.isna(y)) else float(x) - float(y)
-    df["Leg Hinge Δ(프로-일반)"]     = [_sub(x,y) for x,y in zip(df[f"{pro_name} Leg Hinge (deg)"],    df[f"{ama_name} Leg Hinge (deg)"])]
-    df["Section Change Δ(프로-일반)"] = [_sub(x,y) for x,y in zip(df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"])]
+    def _sub(x, y):
+        return np.nan if (pd.isna(x) or pd.isna(y)) else float(x) - float(y)
+
+    df["Leg Hinge Δ(프로-일반)"] = [
+        _sub(x, y) for x, y in zip(
+            df[f"{pro_name} Leg Hinge (deg)"], df[f"{ama_name} Leg Hinge (deg)"]
+        )
+    ]
+    df["Section Change Δ(프로-일반)"] = [
+        _sub(x, y) for x, y in zip(
+            df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"]
+        )
+    ]
+
+    # 숫자 컬럼 강제 숫자화
+    num_cols = [
+        f"{pro_name} Leg Hinge (deg)",
+        f"{pro_name} Section Change (deg)",
+        f"{ama_name} Leg Hinge (deg)",
+        f"{ama_name} Section Change (deg)",
+        "Leg Hinge Δ(프로-일반)",
+        "Section Change Δ(프로-일반)",
+    ]
+    for c in num_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # ── SD(1–8) 계산: '1', '1 (ADD)' 등 숫자 앞부분 추출해서 1~8 범위 필터 ──
+    frame_num = (
+        df["Frame"].astype(str).str.extract(r'^(\d+)')[0].astype(float)
+    )
+    mask_1_8 = frame_num.between(1, 8, inclusive="both")
+
+    sd_lh_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Leg Hinge (deg)"],     ddof=0))
+    sd_sc_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Section Change (deg)"], ddof=0))
+    sd_lh_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Leg Hinge (deg)"],     ddof=0))
+    sd_sc_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Section Change (deg)"], ddof=0))
+    sd_lh_delta = float(np.nanstd(df.loc[mask_1_8, "Leg Hinge Δ(프로-일반)"],          ddof=0))
+    sd_sc_delta = float(np.nanstd(df.loc[mask_1_8, "Section Change Δ(프로-일반)"],      ddof=0))
+
+    # SD 요약행 추가 (Frame 칸에 라벨)
+    df.loc[len(df)] = [
+        "SD (1-8)",
+        sd_lh_pro,
+        sd_sc_pro,
+        sd_lh_ama,
+        sd_sc_ama,
+        sd_lh_delta,
+        sd_sc_delta,
+    ]
+
     return df

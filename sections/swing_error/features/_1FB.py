@@ -149,7 +149,7 @@ def build_frontal_bend_compare(pro_arr: np.ndarray, ama_arr: np.ndarray,
         _sub(a, b) for a, b in zip(df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"])
     ]
 
-    # 숫자 컬럼 강제 숫자화(안전)
+        # 숫자 컬럼 강제 숫자화(안전)
     num_cols = [
         f"{pro_name} Frontal Bend (deg)",
         f"{pro_name} Section Change (deg)",
@@ -160,5 +160,29 @@ def build_frontal_bend_compare(pro_arr: np.ndarray, ama_arr: np.ndarray,
     ]
     for c in num_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # ── SD(1-8) 계산해서 행 추가 ──────────────────────────────────
+    # 프레임 값이 1~8인 행만 선택 (요약행/문자 라벨 제외)
+    # 예: "1", "1 (ADD)" 모두 허용
+    mask_1_8 = df["Frame"].astype(str).str.extract(r'^(\d+)')[0].astype(float).between(1, 8, inclusive="both")
+
+    # 표준편차 계산 (모집단 표준편차: ddof=0)  # 샘플표준편차 원하면 ddof=1로 바꾸면 됨
+    sd_fb_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Frontal Bend (deg)"], ddof=0))
+    sd_sc_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Section Change (deg)"], ddof=0))
+    sd_fb_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Frontal Bend (deg)"], ddof=0))
+    sd_sc_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Section Change (deg)"], ddof=0))
+    sd_fb_delta = float(np.nanstd(df.loc[mask_1_8, "Frontal Bend Δ(프로-일반)"], ddof=0))
+    sd_sc_delta = float(np.nanstd(df.loc[mask_1_8, "Section Change Δ(프로-일반)"], ddof=0))
+
+    # 맨 아래 요약행 추가
+    df.loc[len(df)] = [
+        "SD (1-8)",
+        sd_fb_pro,
+        sd_sc_pro,
+        sd_fb_ama,
+        sd_sc_ama,
+        sd_fb_delta,
+        sd_sc_delta,
+    ]
 
     return df

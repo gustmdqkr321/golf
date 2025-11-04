@@ -87,18 +87,71 @@ def build_side_bend_compare(pro_arr: np.ndarray, ama_arr: np.ndarray,
 
     # 정렬키 생성
     def _ord_key(s: str) -> int:
+        s = str(s)
         if s.startswith("Backswing"): return 101
         if s.startswith("Downswing"): return 102
         if s.startswith("Total"):     return 103
-        try: return int(str(s).split()[0])
-        except: return 999
+        try:
+            return int(s.split()[0])
+        except:
+            return 999
 
     p["_ord"] = p["Frame"].map(_ord_key)
 
-    df = p.merge(a, on="Frame", how="outer").sort_values("_ord", kind="stable").drop(columns="_ord").reset_index(drop=True)
+    df = (
+        p.merge(a, on="Frame", how="outer")
+         .sort_values("_ord", kind="stable")
+         .drop(columns="_ord")
+         .reset_index(drop=True)
+    )
 
     # 차이(프로-일반)
-    def _sub(x, y): return np.nan if (pd.isna(x) or pd.isna(y)) else float(x) - float(y)
-    df["Side Bend Δ(프로-일반)"]      = [_sub(x,y) for x,y in zip(df[f"{pro_name} Side Bend (deg)"],     df[f"{ama_name} Side Bend (deg)"])]
-    df["Section Change Δ(프로-일반)"] = [_sub(x,y) for x,y in zip(df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"])]
+    def _sub(x, y):
+        return np.nan if (pd.isna(x) or pd.isna(y)) else float(x) - float(y)
+
+    df["Side Bend Δ(프로-일반)"] = [
+        _sub(x, y) for x, y in zip(
+            df[f"{pro_name} Side Bend (deg)"], df[f"{ama_name} Side Bend (deg)"]
+        )
+    ]
+    df["Section Change Δ(프로-일반)"] = [
+        _sub(x, y) for x, y in zip(
+            df[f"{pro_name} Section Change (deg)"], df[f"{ama_name} Section Change (deg)"]
+        )
+    ]
+
+    # 숫자 컬럼 강제 숫자화 (안전)
+    num_cols = [
+        f"{pro_name} Side Bend (deg)",
+        f"{pro_name} Section Change (deg)",
+        f"{ama_name} Side Bend (deg)",
+        f"{ama_name} Section Change (deg)",
+        "Side Bend Δ(프로-일반)",
+        "Section Change Δ(프로-일반)",
+    ]
+    for c in num_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # ── SD(1–8) 계산: '1', '1 (ADD)' 등 숫자 추출 후 1~8 범위 필터 ──
+    frame_num = df["Frame"].astype(str).str.extract(r'^(\d+)')[0].astype(float)
+    mask_1_8 = frame_num.between(1, 8, inclusive="both")
+
+    sd_sb_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Side Bend (deg)"],     ddof=0))
+    sd_sc_pro   = float(np.nanstd(df.loc[mask_1_8, f"{pro_name} Section Change (deg)"], ddof=0))
+    sd_sb_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Side Bend (deg)"],     ddof=0))
+    sd_sc_ama   = float(np.nanstd(df.loc[mask_1_8, f"{ama_name} Section Change (deg)"], ddof=0))
+    sd_sb_delta = float(np.nanstd(df.loc[mask_1_8, "Side Bend Δ(프로-일반)"],          ddof=0))
+    sd_sc_delta = float(np.nanstd(df.loc[mask_1_8, "Section Change Δ(프로-일반)"],      ddof=0))
+
+    # SD 요약행 추가
+    df.loc[len(df)] = [
+        "SD (1-8)",
+        sd_sb_pro,
+        sd_sc_pro,
+        sd_sb_ama,
+        sd_sc_ama,
+        sd_sb_delta,
+        sd_sc_delta,
+    ]
+
     return df

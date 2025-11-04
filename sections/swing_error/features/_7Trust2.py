@@ -109,14 +109,36 @@ def build_34_flat_sho_plane(arr: np.ndarray, baseline=None, yellow=None) -> pd.D
     return _fmt(rows, baseline, yellow)
 
 # 3.5 Flying Elbow
+import math
+
+def _dist3(arr, p: tuple[str,str,str], q: tuple[str,str,str]) -> float:
+    x1, y1, z1 = (g(arr, p[0]), g(arr, p[1]), g(arr, p[2]))
+    x2, y2, z2 = (g(arr, q[0]), g(arr, q[1]), g(arr, q[2]))
+    if any(map(lambda v: v != v, (x1,y1,z1,x2,y2,z2))):  # NaN 체크
+        return float("nan")
+    return math.sqrt((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)
+
 def build_35_flying_elbow(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
+    # 3. 1/4 DIST DIFF 계산
+    AB_4 = _dist3(arr, ("AR4","AS4","AT4"), ("BG4","BH4","BI4"))
+    CD_1 = _dist3(arr, ("AR1","AS1","AT1"), ("BG1","BH1","BI1"))
+    dist_diff = AB_4 - CD_1
+
     rows = [
-        ("1. BOTH ELB 1 Z/4 X DIFF", (g(arr,"BG4")-g(arr,"AR4")) - (g(arr,"AT1")-g(arr,"BI1")),
+        ("1. BOTH ELB 1 Z/4 X DIFF",
+         (g(arr,"BG4")-g(arr,"AR4")) - (g(arr,"AT1")-g(arr,"BI1")),
          "(BG4−AR4) − (AT1−BI1)"),
-        ("2. 4 R WRI/ ELB X", g(arr,"BG4")-g(arr,"BM4"), "BG4 − BM4"),
-        # ("3. 1/4 DIST DIFF", np.nan, "추가 규칙 필요(보류)")
+
+        ("2. 4 R WRI/ ELB X",
+         g(arr,"BG4")-g(arr,"BM4"),
+         "BG4 − BM4"),
+
+        ("3. 1/4 DIST DIFF",
+         dist_diff,
+         "dist([AR4,AS4,AT4],[BG4,BH4,BI4]) − dist([AR1,AS1,AT1],[BG1,BH1,BI1])"),
     ]
     return _fmt(rows, baseline, yellow)
+
 
 # 3.6 Sway
 def build_36_sway(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
@@ -134,7 +156,7 @@ def build_36_sway(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
 def build_37_casting(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
     rows = [
         ("1. 5 R WRI/CHD Z", g(arr,"CP5")-g(arr,"BO5"), "CP5 − BO5"),
-        ("2. 6 R WRI/CHD Y", g(arr,"CO6")-g(arr,"BN6"), "CO6 − BN6"),
+        ("2. 6 R WRI/CHD Y", g(arr,"CP6")-g(arr,"BO6"), "CO6 − BN6"),
         ("3. 6 R WRI/CHD Z", g(arr,"CP6")-g(arr,"BO6"), "CP6 − BO6"),
         # 복합 조건(5–7 최소값/0 조건)은 후속 규칙 필요 → 보류
     ]
@@ -175,15 +197,36 @@ def build_312_reverse_spine(arr: np.ndarray, baseline=None, yellow=None) -> pd.D
     rows = [("4 WAI/SHO Z", sho - wai, "(AN4+BC4)/2 − (J4+M4)/2")]
     return _fmt(rows, baseline, yellow)
 
+# 파일 상단 import들 근처
+import math
+
+def _dist3_by_codes(arr, p3: tuple[str,str,str], q3: tuple[str,str,str]) -> float:
+    """코드 3개로 지정한 두 점 사이 3D 거리"""
+    ax, ay, az = (g(arr, p3[0]), g(arr, p3[1]), g(arr, p3[2]))
+    bx, by, bz = (g(arr, q3[0]), g(arr, q3[1]), g(arr, q3[2]))
+    if any(pd.isna(v) for v in (ax, ay, az, bx, by, bz)):
+        return float("nan")
+    return math.sqrt((bx-ax)**2 + (by-ay)**2 + (bz-az)**2)
+
+
 # 3.13 Chicken wing
 def build_313_chicken_wing(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:
+    # 1/8 DIST DIFF = dist(A8,B8) - dist(A1,B1)
+    ab8 = _dist3_by_codes(arr, ("AR8","AS8","AT8"), ("BG8","BH8","BI8"))
+    cd1 = _dist3_by_codes(arr, ("AR1","AS1","AT1"), ("BG1","BH1","BI1"))
+    dist_18 = ab8 - cd1
+
     rows = [
         ("8 L ELB/L WRI Z", g(arr,"AZ8")-g(arr,"AT8"), "AZ8 − AT8"),
-        ("BOTH ELB 1 Z/8 X DIFF", (g(arr,"AR8")-g(arr,"BG8"))-(g(arr,"AT1")-g(arr,"BI1")),
+        ("BOTH ELB 1 Z/8 X DIFF",
+         (g(arr,"AR8")-g(arr,"BG8"))-(g(arr,"AT1")-g(arr,"BI1")),
          "(AR8−BG8) − (AT1−BI1)"),
-        # ("1/8 DIST DIFF(추가)", np.nan, "추가 규칙 필요(보류)"),
+        ("1/8 DIST DIFF",
+         dist_18,
+         "dist([AR8,AS8,AT8],[BG8,BH8,BI8]) − dist([AR1,AS1,AT1],[BG1,BH1,BI1])"),
     ]
     return _fmt(rows, baseline, yellow)
+
 
 # 3.14 Scooping
 def build_314_scooping(arr: np.ndarray, baseline=None, yellow=None) -> pd.DataFrame:

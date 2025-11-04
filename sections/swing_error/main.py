@@ -553,7 +553,7 @@ def run(ctx=None):
         )
 
         # Trust2 (3.3~3.15) — 3.3은 GS 필요 → tuple 빌더로 주입
-        tables["3_3_EarlyExtension"] = combine_pro_ama_table(
+        tables["3_3_EarlyExtension(Waist Thrust(X, cm))"] = combine_pro_ama_table(
             (lambda a: TR2.build_33_early_extension(a, ctx["gs_pro_arr"]),
             lambda a: TR2.build_33_early_extension(a, ctx["gs_ama_arr"])),
             pro_arr, ama_arr
