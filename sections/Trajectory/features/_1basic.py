@@ -87,32 +87,33 @@ _ITEMS: list[tuple[str, str, str, object]] = [
     ("Loft", "Spin Loft",       "GS",     "B12"),
 
     # Club Lean (GS)
-    ("Club Lean", "Add",        "GS",     "B60"),
-    ("Club Lean", "Imp",        "GS",     "B61"),
-    ("Club Lean", "diff",       "GS",     "B62"),
+    ("Club Lean", "Club Lean(Add)",        "GS",     "B60"),
+    ("Club Lean", "Club Lean(Imp)",        "GS",     "B61"),
+    ("Club Lean", "Club Lean(diff)",       "GS",     "B62"),
 
     # L WRI/CHD (무지개/베이직)
-    ("L WRI/CHD", "add",        "BASE",   "CP1 - AZ1"),
-    ("L WRI/CHD", "imp",        "BASE",   "CP7 - AZ7"),
+    ("L WRI/CHD", "L WRI/CHD(add)",        "BASE",   "CP1 - AZ1"),
+    ("L WRI/CHD", "L WRI/CHD(imp)",        "BASE",   "CP7 - AZ7"),
+    ("L WRI/CHD", "L WRI/CHD(diff)",       "BASE",   "(CP1 - AZ1) - (CP7 - AZ7)"),
 
     # Lateral Tilt (Impact)
-    ("Lateral Tilt(imp)", "Hip",   "GS",  "E61"),
-    ("Lateral Tilt(imp)", "Torso", "GS",  "E62"),
+    ("Lateral Tilt(imp)", "Lateral Tilt(imp) Hip",   "GS",  "E61"),
+    ("Lateral Tilt(imp)", "Lateral Tilt(imp) Torso", "GS",  "E62"),
 
     # Low Point / Up-Down Path
     ("Low Point",        "Low Point", "GS", "B14"),
     ("Up / Down Path",   "Up / Down Path", "GS", "B57"),
 
     # Body Side Bend (Impact)
-    ("Body Side Bend (Impact)", "Pelvis(deg)",   "GS", "E22"),
-    ("Body Side Bend (Impact)", "Ribcage(deg)",  "GS", "E23"),
+    ("Body Side Bend (Impact)", "Body side bend Pelvis(deg)",   "GS", "E22"),
+    ("Body Side Bend (Impact)", "Body side bend Ribcage(deg)",  "GS", "E23"),
 
     # L/R SHO DIF (무지개)
-    ("L/R SHO DIF", "ADD",      "BASE",   "AM1 - BB1"),
-    ("L/R SHO DIF", "IMP",      "BASE",   "AM7 - BB7"),
+    ("L/R SHO DIF", "L/R SHO DIF ADD",      "BASE",   "AM1 - BB1"),
+    ("L/R SHO DIF", "L/R SHO DIF IMP",      "BASE",   "AM7 - BB7"),
 
     # Stance with / Club Position  = |CA1-CP1| / |CA1-CM1|
-    ("Stance with/Club Position", "ratio(|CA1-CP1| / |CA1-CM1|)",
+    ("Stance with/Club Position", "Stance with/Club Position",
                                   "SPECIAL",
                                   {"type": "abs_ratio",
                                    "num": ("CA1", "CP1"),
@@ -159,11 +160,11 @@ def build_trajectory_table(gs_pro: pd.DataFrame, gs_ama: pd.DataFrame,
         else:
             p = a = float("nan")
 
-        rows.append([group, label,
+        rows.append([label,
                     
                      p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["분류", "검사명", "프로", "일반", "차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["검사명", "프로", "일반", "차이(프로-일반)"])
 
     # 숫자형 보장
     for c in ["프로", "일반", "차이(프로-일반)"]:

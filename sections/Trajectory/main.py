@@ -143,7 +143,7 @@ def run(ctx=None):
     df_armsho = sum2.build_arm_shoulder_angle_table(pro_arr, ama_arr)
     st.dataframe(df_armsho.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
                  use_container_width=True)
-    tables["탑 시 왼팔 평면"] = df_armsho
+    tables["4 Flat/Upright"] = df_armsho
 
     st.divider()
     st.subheader("club plane")

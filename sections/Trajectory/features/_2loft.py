@@ -77,7 +77,7 @@ def eval_expr_base(arr: np.ndarray, expr: str) -> float:
     return float(eval(safe, {"__builtins__": None}, {}))
 
 
-DM_COLS = ["DM1", "DM4", "DM5", "DM6", "DM7", "DM8", "DM9", "DM10"]
+DM_COLS = ["DM1","DM2", "DM4", "DM5", "DM6", "DM7", "DM8"]
 
 def build_dm_series_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.DataFrame:
     """

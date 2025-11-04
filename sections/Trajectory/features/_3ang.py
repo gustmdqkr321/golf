@@ -100,7 +100,7 @@ def _angle_abc(arr: np.ndarray) -> float:
 _ITEMS = [
     ("L WRI/CHD", "6 L WRI/CHD Y", "BASE", "CO6 - AY6"),
     ("L WRI/CHD", "8 L WRI/CHD Y", "BASE", "CO8 - AY8"),
-    ("L WRI/CHD", "6/7/8 Ang",     "SPECIAL", "angle"),
+    ("L WRI/CHD", "CHD 6/7/8 Ang",     "SPECIAL", "angle"),
 ]
 
 
@@ -116,9 +116,9 @@ def build_wri_chd_angle_table(base_pro: np.ndarray, base_ama: np.ndarray) -> pd.
             p = _angle_abc(base_pro); a = _angle_abc(base_ama)
         else:
             p = a = float("nan")
-        rows.append([group, label, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["분류","검사명","프로","일반","차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["검사명","프로","일반","차이(프로-일반)"])
     for c in ["프로","일반","차이(프로-일반)"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
