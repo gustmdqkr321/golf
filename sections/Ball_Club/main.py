@@ -89,12 +89,14 @@ def run(ctx=None):
     # 1) 표 생성
     # ─────────────────────────────────────────────────────────────
     df_mix = gs.build_gs_mixed_compare(gs_pro, gs_ama, base_pro, base_ama)
+    st.markdown("#### Distance")
     st.dataframe(
         df_mix.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
         use_container_width=True
     )
 
     st.divider()
+    st.markdown("#### Direction")
     df_dir = dir.build_gs_club_table(gs_pro, gs_ama, base_pro, base_ama)
     st.dataframe(
         df_dir.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}, na_rep=""),
@@ -102,6 +104,7 @@ def run(ctx=None):
     )
 
     st.divider()
+    st.markdown("#### 기타")
     df_etc = etc.build_gs_b48_b55_table(gs_pro, gs_ama)
     st.dataframe(
         df_etc.style.format({"프로":"{:.2f}","일반":"{:.2f}","차이(프로-일반)":"{:+.2f}"}),
@@ -110,9 +113,9 @@ def run(ctx=None):
 
     # 이 섹션의 모든 표를 dict로 모으기 (→ 단일시트 내보내기 + 마스터 병합용)
     tables: dict[str, pd.DataFrame] = {
-        "Mixed Compare": df_mix,
-        "Club Direction": df_dir,
-        "GS B48~B55": df_etc,
+        "Distance": df_mix,
+        "Direction": df_dir,
+        "기타": df_etc,
     }
 
     # 미리보기(옵션)
