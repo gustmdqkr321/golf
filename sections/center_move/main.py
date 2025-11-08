@@ -261,7 +261,7 @@ def run(ctx=None):
     tables["z Change"] = dfz
 
     st.divider()
-    st.subheader("X Change"))
+    st.subheader("X Change")
     dfx = zmove.build_x_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("X Change", dfx), use_container_width=True)
     tables["X Change"] = dfx
