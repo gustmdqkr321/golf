@@ -56,13 +56,13 @@ def build_quarter9_10_phase_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> p
     rows = []
     for label, expr in _ITEMS_Q9:
         p = _eval_expr(pro_arr, expr); a = _eval_expr(ama_arr, expr)
-        rows.append(["Q9", label, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
     for label, expr in _ITEMS_Q10:
         p = _eval_expr(pro_arr, expr); a = _eval_expr(ama_arr, expr)
-        rows.append(["Q10", label, p, a, p - a])
+        rows.append([label, p, a, p - a])
 
-    df = pd.DataFrame(rows, columns=["Frame","검사명","프로","일반","차이(프로-일반)"])
+    df = pd.DataFrame(rows, columns=["검사명","프로","일반","차이(프로-일반)"])
     for c in ["프로","일반","차이(프로-일반)"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df

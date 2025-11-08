@@ -18,7 +18,7 @@ from datetime import datetime  # ✅ Datetime 오타 수정
 
 # ─────────────────────────────────────────────────────────────────────
 # 마스터 합본용 세션 저장소
-# {section_id: {"title": str, "tables": dict[str, DataFrame]}}
+# {section_id: {"title": str, "tables": dict[str, pd.DataFrame]}}
 # ─────────────────────────────────────────────────────────────────────
 if "section_tables" not in st.session_state:
     st.session_state["section_tables"] = {}
@@ -70,7 +70,85 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
         # 다음 표 시작 위치로 이동: 본문 n_rows + 헤더 1 + 여백 2
         cur_row += n_rows + 1 + 2
 
+# ─────────────────────────────────────────────────────────────
+# ✅ 화면 하이라이트 유틸 (인덱스로 라벨 열만 색칠)
+# ─────────────────────────────────────────────────────────────
+def _norm_indices(n: int, idxs: list[int]) -> list[int]:
+    """음수 인덱스 허용(-1: 마지막 행 등) → 정규화"""
+    out = []
+    for i in idxs:
+        j = n + i if i < 0 else i
+        if 0 <= j < n:
+            out.append(j)
+    return sorted(set(out))
 
+def _style_highlight_rows_by_index(df: pd.DataFrame,
+                                   row_indices: list[int],
+                                   target_cols: list[str] | tuple[str, ...] = (),
+                                   color: str = "#A9D08E") -> pd.io.formats.style.Styler:
+    """
+    row_indices: 0-based 인덱스 리스트. 빈 리스트면 원본 스타일 유지.
+    target_cols: 색칠할 '라벨 열'만 지정. 비우면 첫 번째 열을 자동 라벨로 칠함.
+    """
+    if not row_indices:
+        return df.style
+    if not target_cols:
+        target_cols = (df.columns[0],)
+    elif isinstance(target_cols, str):
+        target_cols = (target_cols,)
+    target_cols = [c for c in target_cols if c in df.columns]
+    if not target_cols:
+        target_cols = (df.columns[0],)
+
+    styles = pd.DataFrame("", index=df.index, columns=df.columns)
+    n = len(df)
+    for idx in row_indices:
+        if 0 <= idx < n:
+            for c in target_cols:
+                styles.iat[idx, df.columns.get_loc(c)] = f"background-color: {color}"
+    return df.style.apply(lambda _df: styles, axis=None)
+
+def _apply_2f(styler: pd.io.formats.style.Styler, df: pd.DataFrame) -> pd.io.formats.style.Styler:
+    """숫자열만 소수 둘째 자리 포맷"""
+    fmt = {c: "{:.2f}" for c in df.columns if pd.api.types.is_numeric_dtype(df[c])}
+    return styler.format(fmt)
+
+# ─────────────────────────────────────────────────────────────
+# ✅ Swing Phase 표별 인덱스 / 라벨 열 매핑
+# (라벨 열을 모르면 ""로 두면 첫 열을 자동 라벨로 칠함)
+# 필요 시 인덱스 리스트를 너 기준으로 바꿔 써!
+# ─────────────────────────────────────────────────────────────
+IDX_TAKE_BACK   = [0,1,4,5,11,12]          # 예시
+IDX_HALF        = []          # 예시
+IDX_TOP         = [0,3,4,5,6,7,9,11,12,14,16,19]      # 예시(마지막 행 포함)
+IDX_TRANS       = [1,5,9,11,12,14,18,22,23]          # 예시
+IDX_DOWN        = [0,1,5,6,7,10,11,12,13,20,21]       # 예시
+IDX_IMPACT      = [0,1,2,3,7,11,12,13]          # 예시
+IDX_IMP_TBS     = []          # 예시 (5.10 표)
+IDX_IMP_ADDIMP  = [9,12,14,15,16,17,18,22,23,24,25,30,32,33]       # 예시 (2.1.8 표)
+IDX_FOLLOW1     = [1]          # 예시
+IDX_FOLLOW2     = [7,11]       # 예시
+
+SP_TABLE_STYLES: dict[str, tuple[str, list[int]]] = {
+    "2_1_2_Take_Back":              ("", IDX_TAKE_BACK),
+    "2_1_3_Half_Swing":             ("", IDX_HALF),
+    "2_1_4_Top":                    ("", IDX_TOP),
+    "2_1_5_Transition":             ("", IDX_TRANS),
+    "2_1_6_Downswing":              ("", IDX_DOWN),
+    "2_1_7_Impact":                 ("", IDX_IMPACT),
+    "5_10_Impact_Turn_Bend_SideBend": ("", IDX_IMP_TBS),
+    "2_1_8_Imp_AddImp":             ("", IDX_IMP_ADDIMP),
+    "2_1_9_Follow1":                ("", IDX_FOLLOW1),
+    "2_1_10_Follow2":               ("", IDX_FOLLOW2),
+}
+
+def _style_with_key(table_key: str, df: pd.DataFrame, color: str = "#A9D08E") -> pd.io.formats.style.Styler:
+    label_col, idxs = SP_TABLE_STYLES.get(table_key, ("", []))
+    norm = _norm_indices(len(df), idxs)
+    target_cols = (label_col,) if label_col else ()
+    return _apply_2f(_style_highlight_rows_by_index(df, norm, target_cols=target_cols, color=color), df)
+
+# ─────────────────────────────────────────────────────────────
 META = {"id": "swing_phase", "title": "8. Swing Phase", "icon": "🏌️‍♂️", "order": 28}
 def get_metadata(): return META
 
@@ -96,80 +174,70 @@ def run(ctx=None):
         # 계속 진행은 함 (GS 필요한 표는 건너뜀)
 
     # ─────────────────────────────────────────────────────────────
-    # 1) 표 생성 및 화면 표시
+    # 1) 표 생성 및 화면 표시 (✅ 하이라이트 적용)
     # ─────────────────────────────────────────────────────────────
     tables: dict[str, pd.DataFrame] = {}
 
     # 2.1.2 Take Back
     st.subheader("2.1.2 Take Back")
     df_tb = feat.build_swing_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_tb.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_2_Take_Back", df_tb), use_container_width=True)
     tables["2_1_2_Take_Back"] = df_tb
 
     # 2.1.3 Half Swing
     st.divider(); st.subheader("2.1.3 Half Swing")
     df_half = half.build_swing_phase_table_v2(pro_arr, ama_arr)
-    st.dataframe(df_half.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_3_Half_Swing", df_half), use_container_width=True)
     tables["2_1_3_Half_Swing"] = df_half
 
     # 2.1.4 Top
     st.divider(); st.subheader("2.1.4 Top")
     df_top = t214.build_quarter_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_top.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_4_Top", df_top), use_container_width=True)
     tables["2_1_4_Top"] = df_top
 
     # 2.1.5 Transition
     st.divider(); st.subheader("2.1.5 Transition")
     df_q5 = trans.build_quarter5_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_q5.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_5_Transition", df_q5), use_container_width=True)
     tables["2_1_5_Transition"] = df_q5
 
     # 2.1.6 Downswing
     st.divider(); st.subheader("2.1.6 Downswing")
     df_q6 = down.build_quarter6_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_q6.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_6_Downswing", df_q6), use_container_width=True)
     tables["2_1_6_Downswing"] = df_q6
 
     # 2.1.7 Impact
     st.divider(); st.subheader("2.1.7 Impact")
     df_q7 = imp.build_quarter7_impact_table(pro_arr, ama_arr)
-    st.dataframe(df_q7.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_7_Impact", df_q7), use_container_width=True)
     tables["2_1_7_Impact"] = df_q7
 
     # 5.10 Impact : Turn, Bend, Side Bend (GS 필요)
     if gs_pro is not None and gs_ama is not None:
         st.divider(); st.subheader("5.10 Impact : Turn, Bend, Side Bend")
         df_tb_s = imp2.build_turn_bend_table(gs_pro, gs_ama)
-        st.dataframe(df_tb_s.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                     use_container_width=True)
+        st.dataframe(_style_with_key("5_10_Impact_Turn_Bend_SideBend", df_tb_s), use_container_width=True)
         tables["5_10_Impact_Turn_Bend_SideBend"] = df_tb_s
 
     # 2.1.8 Imp & Add/Imp (GS + Base)
     if gs_pro is not None and gs_ama is not None:
         st.divider(); st.subheader("2.1.8 Imp & Add/Imp")
         df_sum = t218.build_summary_phase_table(gs_pro, gs_ama, pro_arr, ama_arr)
-        st.dataframe(df_sum.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                     use_container_width=True)
+        st.dataframe(_style_with_key("2_1_8_Imp_AddImp", df_sum), use_container_width=True)
         tables["2_1_8_Imp_AddImp"] = df_sum
 
     # 2.1.9 Follow1
     st.divider(); st.subheader("2.1.9 Follow1")
     df_q8 = fol1.build_quarter8_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_q8.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_9_Follow1", df_q8), use_container_width=True)
     tables["2_1_9_Follow1"] = df_q8
 
     # 2.1.10 Follow2
     st.divider(); st.subheader("2.1.10 Follow2")
     df_q9q10 = fol2.build_quarter9_10_phase_table(pro_arr, ama_arr)
-    st.dataframe(df_q9q10.style.format({"프로":"{:.2f}", "일반":"{:.2f}", "차이(프로-일반)":"{:+.2f}"}),
-                 use_container_width=True)
+    st.dataframe(_style_with_key("2_1_10_Follow2", df_q9q10), use_container_width=True)
     tables["2_1_10_Follow2"] = df_q9q10
 
     # ─────────────────────────────────────────────────────────────

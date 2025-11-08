@@ -119,12 +119,12 @@ def build_compare_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFram
     a1, a2, a3 = triplet(ama_arr)
 
     rows = [
-        ["① ADD  (H1+K1)/2",  p1, a1, p1 - a1],
-        ["② TOP  (H4+K4)/2",  p2, a2, p2 - a2],
-        ["③ IMP  (H7+K7)/2",  p3, a3, p3 - a3],
-        ["ADD-TOP (②−①)",     p2 - p1,  a2 - a1,  (p2 - p1) - (a2 - a1)],
-        ["TOP-IMP (③−②)",     p3 - p2,  a3 - a2,  (p3 - p2) - (a3 - a2)],
-        ["ADD-IMP (③−①)",     p3 - p1,  a3 - a1,  (p3 - p1) - (a3 - a1)],
+        ["ADD",  p1, a1, p1 - a1],
+        ["TOP",  p2, a2, p2 - a2],
+        ["IMP",  p3, a3, p3 - a3],
+        ["ADD-TOP",     p2 - p1,  a2 - a1,  (p2 - p1) - (a2 - a1)],
+        ["TOP-IMP",     p3 - p2,  a3 - a2,  (p3 - p2) - (a3 - a2)],
+        ["ADD-IMP",     p3 - p1,  a3 - a1,  (p3 - p1) - (a3 - a1)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
 

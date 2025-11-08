@@ -192,3 +192,53 @@ def build_shoulder_tdd_table(base_pro: np.ndarray, base_ama: np.ndarray,
         rot_to_m=rot_to_m,
         label="Shoulder",
     )
+
+
+def build_tdd_summary_all(
+    base_pro: np.ndarray,
+    base_ama: np.ndarray,
+    *,
+    rot_to_m: float = 0.01,
+) -> pd.DataFrame:
+    """
+    무릎/골반/어깨의 TDD 테이블에서 구간 요약행만 뽑아
+    하나의 표로 합친다. (1-4 / 4-7 / 7-10 / Total)
+
+    컬럼:
+      ["구간","부위",
+       "이동(Pro,m)","이동(Ama,m)",
+       "회전량(Pro,deg)","회전량(Ama,deg)",
+       "TDD(Pro,m)","TDD(Ama,m)"]
+    """
+    parts: list[tuple[str, callable]] = [
+        ("Knee",    lambda p,a: build_knee_tdd_table(p, a, rot_to_m=rot_to_m)),
+        ("Pelvis",  lambda p,a: build_hip_tdd_table(p, a, rot_to_m=rot_to_m)),
+        ("Shoulder",lambda p,a: build_shoulder_tdd_table(p, a, rot_to_m=rot_to_m)),
+    ]
+    keep = ["1-4", "4-7", "7-10", "Total"]
+
+    frames = []
+    for name, fn in parts:
+        df = fn(base_pro, base_ama)
+        sub = df[df["구간"].isin(keep)].copy()
+        sub.loc[:, "부위"] = name
+        sub = sub[[
+            "구간", "부위",
+            "이동(Pro,m)", "이동(Ama,m)",
+            "회전량(Pro,deg)", "회전량(Ama,deg)",
+            "TDD(Pro,m)", "TDD(Ama,m)",
+        ]]
+        frames.append(sub)
+
+    out = pd.concat(frames, ignore_index=True)
+
+    # 구간/부위 정렬 고정
+    out["구간"] = pd.Categorical(out["구간"], categories=["1-4","4-7","7-10","Total"], ordered=True)
+    out["부위"] = pd.Categorical(out["부위"], categories=["Knee","Pelvis","Shoulder"], ordered=True)
+    out = out.sort_values(["구간","부위"]).reset_index(drop=True)
+
+    # 보기 좋게 반올림
+    for c in ["이동(Pro,m)","이동(Ama,m)","회전량(Pro,deg)","회전량(Ama,deg)","TDD(Pro,m)","TDD(Ama,m)"]:
+        out[c] = out[c].astype(float).round(2)
+
+    return out

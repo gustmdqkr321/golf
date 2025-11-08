@@ -168,3 +168,68 @@ def build_shoulder_rotation_table(base_pro: np.ndarray, base_ama: np.ndarray) ->
         "AL","AM","AN",   # 상위: 왼어깨
         "BA","BB","BC"    # 하위: 오른어깨
     )
+
+# 파일: sections/club_hand/features/_2rot_ang.py
+# (기존 build_left_arm_rotation_table / build_club_rotation_table / build_knee_rotation_table
+#  / build_hip_rotation_table / build_shoulder_rotation_table 아래에 추가)
+
+def build_rotation_summary_all(
+    base_pro: np.ndarray,
+    base_ama: np.ndarray,
+    pro_label: str = "Pro",
+    ama_label: str = "Ama",
+) -> pd.DataFrame:
+    """
+    5개 부위(왼팔, 클럽, 무릎, 골반, 어깨)의 회전각을
+    구간별(1-4 / 4-7 / 7-10 / 합계)로 모은 하나의 표를 만든다.
+
+    반환 컬럼:
+      ["구간","부위",
+       f"{pro_label} 수평회전각", f"{ama_label} 수평회전각",
+       f"{pro_label} 수직회전각", f"{ama_label} 수직회전각"]
+    """
+    parts: list[tuple[str, callable]] = [
+        ("왼팔",    build_left_arm_rotation_table),
+        ("클럽",    build_club_rotation_table),
+        ("무릎",    build_knee_rotation_table),
+        ("골반",    build_hip_rotation_table),
+        ("어깨",    build_shoulder_rotation_table),
+    ]
+    seg_keep = ["1-4", "4-7", "7-10", "Total"]
+
+    rows: list[pd.DataFrame] = []
+    for label, fn in parts:
+        df = fn(base_pro, base_ama)
+        sub = df[df["구간"].isin(seg_keep)].copy()
+        sub.loc[:, "부위"] = label
+        # 컬럼명 매핑
+        sub = sub.rename(columns={
+            "수평(Pro)": f"{pro_label} 수평회전각",
+            "수평(Ama)": f"{ama_label} 수평회전각",
+            "수직(Pro)": f"{pro_label} 수직회전각",
+            "수직(Ama)": f"{ama_label} 수직회전각",
+        })
+        # 필요 컬럼만
+        sub = sub[["구간", "부위",
+                   f"{pro_label} 수평회전각", f"{ama_label} 수평회전각",
+                   f"{pro_label} 수직회전각", f"{ama_label} 수직회전각"]]
+        rows.append(sub)
+
+    out = pd.concat(rows, ignore_index=True)
+
+    # 'Total' → '합계', 구간 정렬 고정
+    out["구간"] = out["구간"].replace({"Total": "합계"})
+    order = pd.CategoricalDtype(categories=["1-4", "4-7", "7-10", "합계"], ordered=True)
+    out["구간"] = out["구간"].astype(order)
+
+    # 보기 좋게 정렬: 구간 → 부위(왼팔, 클럽, 무릎, 골반, 어깨 순)
+    part_order = pd.CategoricalDtype(categories=["왼팔", "클럽", "무릎", "골반", "어깨"], ordered=True)
+    out["부위"] = out["부위"].astype(part_order)
+    out = out.sort_values(["구간", "부위"]).reset_index(drop=True)
+
+    # 반올림(표시 일관성)
+    for c in [f"{pro_label} 수평회전각", f"{ama_label} 수평회전각",
+              f"{pro_label} 수직회전각", f"{ama_label} 수직회전각"]:
+        out[c] = out[c].round(2)
+
+    return out
