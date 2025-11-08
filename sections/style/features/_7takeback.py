@@ -27,7 +27,7 @@ def _wri_chd_values(arr: np.ndarray) -> dict:
     # 1, 2: 요청 그대로 부호 있는 차이
     val_x = g(arr, "CN2") - g(arr, "BM2")
     val_y = g(arr, "CO2") - g(arr, "AX2")
-
+    var3 = g(arr, "CP2") - g(arr, "CP1")
     # ① AC (길이 → 항상 양수)
     AB1 = g(arr, "BB1") - g(arr, "BH1")
     BC1 = g(arr, "BA1") - g(arr, "BG1")
@@ -45,7 +45,7 @@ def _wri_chd_values(arr: np.ndarray) -> dict:
 
     triple_sum = AC1 + AC2 + BC3
 
-    return {"x": val_x, "y": val_y, "sum3": triple_sum}
+    return {"x": val_x, "y": val_y, "sum3": var3}
 
 def build_wri_chd_table_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     """
@@ -60,6 +60,6 @@ def build_wri_chd_table_compare(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.
     rows = [
         ["2 L WRI/CHD X", round(p["x"], 2),   round(a["x"], 2)],
         ["2 L WRI/CHD Y", round(p["y"], 2),   round(a["y"], 2)],
-        ["l WRI/CHD Z", round(p["sum3"], 2), round(a["sum3"], 2)],
+        ["2 CHD Z", round(p["sum3"], 2), round(a["sum3"], 2)],
     ]
     return pd.DataFrame(rows, columns=["항목", "프로", "일반"])

@@ -1,3 +1,6 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# sections/forces/features/_1power.py  (patched for Excel numeric + yellow_rows)
+# ─────────────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
@@ -11,10 +14,12 @@ def col_letters_to_index(letters: str) -> int:
         idx = idx * 26 + (ord(ch.upper()) - ord('A') + 1)
     return idx - 1
 
+
 def g(arr: np.ndarray, code: str) -> float:
     letters = ''.join(filter(str.isalpha, code))
     num     = int(''.join(filter(str.isdigit, code)))
     return float(arr[num - 1, col_letters_to_index(letters)])
+
 
 def fmt(x) -> str:
     try:
@@ -45,6 +50,7 @@ class ForceResult:
 def extract_times(arr: np.ndarray) -> np.ndarray:
     """B열 시간(초), 1..10 프레임(ADD~Finish)"""
     return np.array([g(arr, f"B{t}") for t in range(1, 11)], dtype=float)  # 10개
+
 
 def _center_series(arr: np.ndarray, part: str, cm_to_m: float = 0.01) -> np.ndarray:
     """
@@ -96,19 +102,24 @@ def _segment_forces(C: np.ndarray, times: np.ndarray | None, mass: float = 60.0)
 # ─────────────────────── 표 생성 ───────────────────────
 def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     """요약 행은 모두 '절대값 합(abs sum)' 기준."""
-    rows = []
+    rows: List[List[object]] = []
     for i, name in enumerate(FRAMES):
         r = F_r[i]; h = F_h[i]
-        opp = np.sign(r) * np.sign(h) == -1
-        def mark(v, flag):
-            return f"{fmt(v)}{' ❗' if (isinstance(flag, np.ndarray) and flag.any()) or (isinstance(flag, (bool, np.bool_)) and flag) else ''}"
         rows.append([
             name,
-            fmt(r[0]), fmt(r[1]), fmt(r[2]),
-            mark(h[0], opp[0]), mark(h[1], opp[1]), mark(h[2], opp[2]),
-            fmt(abs(r[0]-h[0])), fmt(abs(r[1]-h[1])), fmt(abs(r[2]-h[2])),
+            float(r[0]) if np.isfinite(r[0]) else np.nan,
+            float(r[1]) if np.isfinite(r[1]) else np.nan,
+            float(r[2]) if np.isfinite(r[2]) else np.nan,
+            float(h[0]) if np.isfinite(h[0]) else np.nan,
+            float(h[1]) if np.isfinite(h[1]) else np.nan,
+            float(h[2]) if np.isfinite(h[2]) else np.nan,
+            float(abs(r[0]-h[0])) if np.isfinite(r[0]) and np.isfinite(h[0]) else np.nan,
+            float(abs(r[1]-h[1])) if np.isfinite(r[1]) and np.isfinite(h[1]) else np.nan,
+            float(abs(r[2]-h[2])) if np.isfinite(r[2]) and np.isfinite(h[2]) else np.nan,
         ])
-    df = pd.DataFrame(rows, columns=["Frame","pro_X","pro_Y","pro_Z","ama_X","ama_Y","ama_Z","Diff_X","Diff_Y","Diff_Z"])
+    df = pd.DataFrame(rows, columns=[
+        "Frame","Pro_X","Pro_Y","Pro_Z","Ama_X","Ama_Y","Ama_Z","Diff_X","Diff_Y","Diff_Z"
+    ])
 
     # 프레임 인덱스 맵
     idx = {name:i for i,name in enumerate(FRAMES)}
@@ -120,13 +131,13 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
         "요약 7-9": [idx["FH1"], idx["FH2"]],
     }
 
-    def abs_sum_rows(rows_idx: List[int]) -> List[str]:
+    def abs_sum_rows(rows_idx: List[int]) -> List[float]:
         R = np.nansum(np.abs(F_r[rows_idx]), axis=0)  # pro XYZ |.| 합
         H = np.nansum(np.abs(F_h[rows_idx]), axis=0)  # ama XYZ |.| 합
-        D = np.abs(R - H)                              # (차이의 절대값) = |Σ|pro| - Σ|ama||
-        return [fmt(R[0]), fmt(R[1]), fmt(R[2]),
-                fmt(H[0]), fmt(H[1]), fmt(H[2]),
-                fmt(D[0]), fmt(D[1]), fmt(D[2])]
+        D = np.abs(R - H)                              # (차이의 절대값)
+        return [float(R[0]), float(R[1]), float(R[2]),
+                float(H[0]), float(H[1]), float(H[2]),
+                float(D[0]), float(D[1]), float(D[2])]
 
     for title, idxs in segs.items():
         df.loc[len(df)] = [title] + abs_sum_rows(idxs)
@@ -141,54 +152,60 @@ def _mk_main_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
             if np.sign(r[a]) * np.sign(h[a]) == -1:
                 opposite += 1
     ratio = (opposite/total) if total else 0.0
-    df.loc[len(df)] = ["부호반대비율", fmt(ratio), "", "", "", "", "", "", "", ""]
+    df.loc[len(df)] = ["부호반대비율", float(ratio), np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
 
-    # ✅ 요청한 2줄 추가: 1-7, 1-9 (절대값 합산)
-    seg_1_7 = [idx["BH"], idx["BH2"], idx["TOP"], idx["TR"], idx["DH"], idx["IMP"]]        # 2(BH)~7(IMP)
-    seg_1_9 = seg_1_7 + [idx["FH1"], idx["FH2"]]                                            # 2(BH)~9(FH2)
+    # 1-7, 1-9 (절대값 합산)
+    seg_1_7 = [idx["BH"], idx["BH2"], idx["TOP"], idx["TR"], idx["DH"], idx["IMP"]]
+    seg_1_9 = seg_1_7 + [idx["FH1"], idx["FH2"]]
     df.loc[len(df)] = ["1-7"] + abs_sum_rows(seg_1_7)
     df.loc[len(df)] = ["1-9"] + abs_sum_rows(seg_1_9)
 
-    # ✅ 한 줄 더: 2~9행(X+Y+Z) 총합을 단일 값으로(프로/일반/차이)
-    R_vec = np.nansum(np.abs(F_r[seg_1_9]), axis=0)   # pro의 [Σ|X|, Σ|Y|, Σ|Z|]
-    H_vec = np.nansum(np.abs(F_h[seg_1_9]), axis=0)   # ama의 [Σ|X|, Σ|Y|, Σ|Z|]
-    R_xyz = float(np.nansum(R_vec))                   # pro XYZ 총합(스칼라)
-    H_xyz = float(np.nansum(H_vec))                   # ama XYZ 총합(스칼라)
-    D_xyz = abs(R_xyz - H_xyz)                        # 총합 차이(스칼라)
+    # 1-9 XYZ 스칼라 합
+    R_vec = np.nansum(np.abs(F_r[seg_1_9]), axis=0)  # pro의 [Σ|X|, Σ|Y|, Σ|Z|]
+    H_vec = np.nansum(np.abs(F_h[seg_1_9]), axis=0)
+    R_xyz = float(np.nansum(R_vec))                  # pro XYZ 총합(스칼라)
+    H_xyz = float(np.nansum(H_vec))                  # ama XYZ 총합(스칼라)
+    D_xyz = abs(R_xyz - H_xyz)
+    df.loc[len(df)] = ["1-9 XYZ", R_xyz, np.nan, np.nan, H_xyz, np.nan, np.nan, D_xyz, np.nan, np.nan]
 
-    # 스칼라를 X열에만 배치하고 나머지 축 칸은 공란으로 둠
-    df.loc[len(df)] = ["1-9 XYZ", fmt(R_xyz), "", "", fmt(H_xyz), "", "", fmt(D_xyz), "", ""]
     return df
 
 
 def _mk_opposite_table(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     rows = []
     for i, name in enumerate(FRAMES):
-        if name == "ADD": continue
+        if name == "ADD":
+            continue
         for axis, ax_name in enumerate(["X","Y","Z"]):
             r, h = F_r[i,axis], F_h[i,axis]
-            if np.isnan(r) or np.isnan(h): continue
+            if np.isnan(r) or np.isnan(h):
+                continue
             if np.sign(r) * np.sign(h) == -1:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
-              .sort_values("|Diff|", ascending=False, ignore_index=True))
+        return pd.DataFrame(columns=["Frame","Axis","Pro","Ama","|Diff|"])
+    df = (pd.DataFrame(rows, columns=["Frame","Axis","Pro","Ama","|Diff|"])
+            .sort_values("|Diff|", ascending=False, ignore_index=True))
+    return df
+
 
 def _mk_same_top3(F_r: np.ndarray, F_h: np.ndarray) -> pd.DataFrame:
     rows = []
     for i, name in enumerate(FRAMES):
-        if name == "ADD": continue
+        if name == "ADD":
+            continue
         for axis, ax_name in enumerate(["X","Y","Z"]):
             r, h = F_r[i,axis], F_h[i,axis]
-            if np.isnan(r) or np.isnan(h): continue
+            if np.isnan(r) or np.isnan(h):
+                continue
             if np.sign(r) * np.sign(h) >= 0:
                 rows.append([name, ax_name, float(r), float(h), abs(float(r)-float(h))])
     if not rows:
-        return pd.DataFrame(columns=["Frame","Axis","pro","ama","|Diff|"])
-    return (pd.DataFrame(rows, columns=["Frame","Axis","pro","ama","|Diff|"])
-              .sort_values("|Diff|", ascending=False, ignore_index=True)
-              .head(3))
+        return pd.DataFrame(columns=["Frame","Axis","Pro","Ama","|Diff|"])
+    df = (pd.DataFrame(rows, columns=["Frame","Axis","Pro","Ama","|Diff|"])
+            .sort_values("|Diff|", ascending=False, ignore_index=True)
+            .head(3))
+    return df
 
 # ─────────────────────── 외부 호출 API ───────────────────────
 def build_all_tables(
@@ -215,4 +232,12 @@ def build_all_tables(
     main   = _mk_main_table(F_r, F_h)   # ← abs_sum 고정
     opp    = _mk_opposite_table(F_r, F_h)
     same3  = _mk_same_top3(F_r, F_h)
+
+    # 엑셀 행 전체 하이라이트 전달
+    if len(opp):
+        opp.attrs["yellow_rows"] = list(range(len(opp)))
+    if len(same3):
+        same3.attrs["yellow_rows"] = list(range(len(same3)))
+
     return ForceResult(main, opp, same3)
+

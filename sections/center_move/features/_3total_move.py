@@ -144,18 +144,7 @@ def _build_axis_table(base_pro: np.ndarray, base_ama: np.ndarray,
     rT = pd.concat([pd.Series({"Frame": "Total"}), dT])
     df = pd.concat([df, pd.DataFrame([r1, r2, r3, rT])], ignore_index=True)
 
-    # 3) 부호 불일치 '!' 표시 (1-4, 4-7, 7-10만)
-    seg_rows = [len(df)-4, len(df)-3, len(df)-2]  # 1-4,4-7,7-10
-    for col in df.columns:
-        if col == "Frame":
-            continue
-        if col.startswith(f"{ama_label} "):
-            pro_col = col.replace(f"{ama_label} ", f"{pro_label} ")
-            for r in seg_rows:
-                p = float(df.at[r, pro_col])
-                a = float(df.at[r, col])
-                df.at[r, pro_col] = f"{p:+.2f}"
-                df.at[r, col]     = f"{a:+.2f}!" if p * a < 0 else f"{a:+.2f}"
+
 
     def _fmt2(x):
         # 이미 '...!' 형태면 느낌표 유지한 채 숫자만 두 자리 보정

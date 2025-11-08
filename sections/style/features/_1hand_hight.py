@@ -49,11 +49,20 @@ def build_compare_df(pro: dict, ama: dict) -> pd.DataFrame:
         "3": "Sho/L Arm Ang (1-2)",
         "4": "R Sho / L Wri Y",
     }
+
+    def _class_from_ama3(v: float) -> str:
+        if v <= 9:
+            return "Flat"
+        if v >= 20:
+            return "Steep"
+        return "Standard"
+
     rows = []
     for no in ["1", "2", "3", "4"]:
         p, a = pro[no], ama[no]
-        rows.append([no, names[no], p, a, p - a])
-    df = pd.DataFrame(rows, columns=["No", "항목", "프로", "일반", "차이(프로-일반)"])
-    df.attrs["pro_class"] = pro["class"]
-    df.attrs["ama_class"] = ama["class"]
+        ama_cls = _class_from_ama3(a) if no == "3" else ""
+        rows.append([names[no], p, a, ama_cls])
+
+    # 차이 컬럼 제거, 일반(Ama) 3번만 분류 표시
+    df = pd.DataFrame(rows, columns=["항목", "프로", "일반", "스타일"])
     return df

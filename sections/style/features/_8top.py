@@ -17,8 +17,8 @@ def g(arr: np.ndarray, code: str) -> float:
 
 def build_frame4_cnax_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFrame:
     """프레임4 비교표: CN4-AX4, CO4-AY4, CP4-AZ4 (프로/일반/차이)"""
-    pairs  = [("CN4","AX4"), ("CO4","AY4"), ("CP4","AZ4")]
-    labels = ["L WRI/CHD X",      "L WRI/CHD Y",      "L WRI/CHD Z"]
+    pairs  = [("AX4","AX1"),("AY4","AY1"),("CN4","AX4"), ("CO4","AY4"), ("CP4","AZ4")]
+    labels = ["1/4 L WRI X",   "1/4 L WRI Y", "4 L WRI/CHD X",      "4 L WRI/CHD Y",      "4 L WRI/CHD Z"]
 
     rows = []
     for (c1, c2), lab in zip(pairs, labels):

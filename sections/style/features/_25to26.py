@@ -44,22 +44,49 @@ def build_26_swing_path(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd.DataFram
       - 2/6 CHD Z : CP6 - CP2
       - 2/6 L WRI X : AX6 - AX2
       - 2/6 L WRI Z : AZ6 - AZ2
-    컬럼: 항목 / 프로 / 일반 / 차이(프로-일반)
+    컬럼: 항목 / 프로 / 일반 / 차이(프로-일반) / 프로 방향 / 일반 방향
     """
     def diff(arr: np.ndarray, a: str, b: str) -> float:
         return g(arr, a) - g(arr, b)
 
-    rows = []
-    items = [
-        ("2/6 CHD X",  ("CN6", "CN2")),
-        ("2/6 CHD Z",  ("CP6", "CP2")),
-        ("2/6 L WRI X",("AX6", "AX2")),
-        ("2/6 L WRI Z",("AZ6", "AZ2")),
-    ]
-    for label, (c1, c2) in items:
-        p = _fmt(diff(pro_arr, c1, c2))
-        a = _fmt(diff(ama_arr, c1, c2))
-        d = _fmt(p - a)
-        rows.append([label, p, a, d])
+    def _dir_x(v: float) -> str:
+        if v < 0:
+            return "X Bak/Fro"
+        if v > 0:
+            return "Fro/Bak"
+        return ""
 
-    return pd.DataFrame(rows, columns=["항목", "프로", "일반", "차이(프로-일반)"])
+    def _dir_z(v: float) -> str:
+        if v < 0:
+            return "Z OUT"
+        if v > 0:
+            return "Z IN"
+        return ""
+
+    items = [
+        ("2/6 CHD X",  ("CN6", "CN2"), _dir_x),  # 1
+        ("2/6 CHD Z",  ("CP6", "CP2"), _dir_z),  # 2
+        ("2/6 L WRI X",("AX6", "AX2"), _dir_x),  # 3
+        ("2/6 L WRI Z",("AZ6", "AZ2"), _dir_z),  # 4
+    ]
+
+    rows = []
+    for label, (c1, c2), dir_fn in items:
+        p_raw = diff(pro_arr, c1, c2)
+        a_raw = diff(ama_arr, c1, c2)
+        d_raw = p_raw - a_raw
+
+        p = _fmt(p_raw)
+        a = _fmt(a_raw)
+        d = _fmt(d_raw)
+
+        rows.append([
+            label, p, a, d,
+            dir_fn(p_raw),  # 프로 방향
+            dir_fn(a_raw),  # 일반 방향
+        ])
+
+    return pd.DataFrame(
+        rows,
+        columns=["항목", "프로", "일반", "차이(프로-일반)", "프로 스타일", "일반 스타일"]
+    )

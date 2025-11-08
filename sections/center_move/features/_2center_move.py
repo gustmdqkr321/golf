@@ -99,19 +99,12 @@ def _delta_rows_table(
     step_idx = [f"{i}-{i+1}" for i in range(1, 10)]
     mov = pd.DataFrame(index=step_idx)
 
-    # 값 채우기 (소수 2자리)
+    # 값 채우기 — 숫자형(float) 유지, 소수 2자리 반올림
     for comp, label in [(d_pro, pro_label), (d_ama, ama_label)]:
-        tmp = pd.DataFrame(comp, index=step_idx, columns=["ΔX", "ΔY", "ΔZ"]).round(2)
+        tmp = pd.DataFrame(comp, index=step_idx, columns=["ΔX", "ΔY", "ΔZ"])
+        tmp = tmp.round(2)
         for ax in ["X", "Y", "Z"]:
-            mov[f"Δ{ax}_{label}"] = tmp[f"Δ{ax}"]
-
-    # 부호 불일치 표시는 Ama 쪽에만 '!' 표시(웹에서 시각 구분용)
-    for ax in ["X", "Y", "Z"]:
-        for k in step_idx:
-            pr = float(mov.at[k, f"Δ{ax}_{pro_label}"])
-            am = float(mov.at[k, f"Δ{ax}_{ama_label}"])
-            mov.at[k, f"Δ{ax}_{pro_label}"] = f"{pr:.2f}"
-            mov.at[k, f"Δ{ax}_{ama_label}"] = f"{am:.2f}!" if pr * am < 0 else f"{am:.2f}"
+            mov[f"Δ{ax}_{label}"] = pd.to_numeric(tmp[f"Δ{ax}"], errors="coerce")
 
     # ── 요약 구간 ─────────────────────────────────────────
     segs3 = [("1-4", 1, 4), ("4-7", 4, 7), ("7-10", 7, 10)]  # [시작,끝) 구간
@@ -122,14 +115,14 @@ def _delta_rows_table(
         for label in [pro_label, ama_label]:
             for ax in ["X", "Y", "Z"]:
                 col = f"Δ{ax}_{label}"
-                vals = mov.loc[keys, col].astype(str).str.rstrip("!").astype(float)
+                vals = pd.to_numeric(mov.loc[keys, col], errors="coerce")
                 mov.at[seg_label, col] = round(float(vals.sum()), 2)
 
     # Total(일반합의 전체)
     for label in [pro_label, ama_label]:
         for ax in ["X", "Y", "Z"]:
             col = f"Δ{ax}_{label}"
-            vals = mov.loc[step_idx, col].astype(str).str.rstrip("!").astype(float)
+            vals = pd.to_numeric(mov.loc[step_idx, col], errors="coerce")
             mov.at["Total", col] = round(float(vals.sum()), 2)
 
     # 2) 절대값합(각 step의 절대값 합)
@@ -139,23 +132,24 @@ def _delta_rows_table(
         for label in [pro_label, ama_label]:
             for ax in ["X", "Y", "Z"]:
                 col = f"Δ{ax}_{label}"
-                vals = mov.loc[keys, col].astype(str).str.rstrip("!").astype(float).abs()
+                vals = pd.to_numeric(mov.loc[keys, col], errors="coerce").abs()
                 mov.at[abs_label, col] = round(float(vals.sum()), 2)
 
     # abs Total
     for label in [pro_label, ama_label]:
         for ax in ["X", "Y", "Z"]:
             col = f"Δ{ax}_{label}"
-            vals = mov.loc[step_idx, col].astype(str).str.rstrip("!").astype(float).abs()
+            vals = pd.to_numeric(mov.loc[step_idx, col], errors="coerce").abs()
             mov.at["TotalAbs", col] = round(float(vals.sum()), 2)
 
     # 3) TotalXYZ: 세 축 절대합(요약 한 줄) → ΔX 컬럼에만 표기
     for label in [pro_label, ama_label]:
         abs_cols = [f"Δ{ax}_{label}" for ax in ["X", "Y", "Z"]]
-        total_xyz = mov.loc["TotalAbs", abs_cols].astype(float).sum()
+        total_xyz = pd.to_numeric(mov.loc["TotalAbs", abs_cols], errors="coerce").sum()
         mov.at["TotalXYZ", f"ΔX_{label}"] = round(float(total_xyz), 2)
 
-    # 인덱스 정렬: step(1-2…9-10) → 일반합(1-4,4-7,7-10,Total) → 절대값합(abs 1-4,abs 4-7,abs 7-10,abs Total) → TotalXYZ
+    # 인덱스 정렬: step(1-2…9-10) → 일반합(1-4,4-7,7-10,Total)
+    # → 절대값합(abs 1-4,abs 4-7,abs 7-10,abs Total) → TotalXYZ
     desired_order = (
         step_idx +
         [lab for (lab, _, _) in segs3] + ["Total"] +
@@ -163,26 +157,9 @@ def _delta_rows_table(
         ["TotalXYZ"]
     )
     mov = mov.reindex(desired_order)
-    def _fmt2(x):
-        # '1.23!' 같은 표식은 느낌표 유지한 채 두 자리로
-        if isinstance(x, str) and x.endswith('!'):
-            try:
-                v = float(x[:-1])
-                return f"{v:.2f}!"
-            except Exception:
-                return x
-        # 빈값/NaN은 공백으로
-        if x is None or (isinstance(x, float) and np.isnan(x)):
-            return ""
-        try:
-            return f"{float(x):.2f}"
-        except Exception:
-            return x
 
-    for col in mov.columns:
-        mov[col] = mov[col].map(_fmt2)
+    # 보기용 식별자 컬럼
     mov.insert(0, "seg", mov.index.astype(str))
-    
     return mov
 
 
@@ -238,7 +215,7 @@ def build_total_move(base_pro: np.ndarray, base_ama: np.ndarray,
         for part, df in tables.items():
             for label in [pro_label, ama_label]:
                 if seg == "Total":
-                    # 🔧 문자열일 수 있으므로 안전하게 float 캐스팅 후 합산
+                    # 숫자형으로 합산
                     x = float(df.at["TotalAbs", f"ΔX_{label}"])
                     y = float(df.at["TotalAbs", f"ΔY_{label}"])
                     z = float(df.at["TotalAbs", f"ΔZ_{label}"])
@@ -248,7 +225,7 @@ def build_total_move(base_pro: np.ndarray, base_ama: np.ndarray,
                     keys = [f"{i}-{i+1}" for i in range(a, b)]
                     acc = 0.0
                     for ax in ["X", "Y", "Z"]:
-                        ser = df.loc[keys, f"Δ{ax}_{label}"].astype(str).str.rstrip("!").astype(float)
+                        ser = pd.to_numeric(df.loc[keys, f"Δ{ax}_{label}"], errors="coerce")
                         acc += ser.abs().sum()
                     val = acc
                 row[f"{part} 총 이동({label}, cm)"] = round(float(val), 2)
@@ -295,8 +272,7 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
                     keys = [f"{i}-{i+1}" for i in range(a, b)]
                     acc = 0.0
                     for ax in ["X", "Y", "Z"]:
-                        # 일부 셀에 '!' 같은 표식이 있다면 제거
-                        ser = df.loc[keys, f"Δ{ax}_{lbl}"].astype(str).str.rstrip("!").astype(float)
+                        ser = pd.to_numeric(df.loc[keys, f"Δ{ax}_{lbl}"], errors="coerce")
                         acc += float(ser.abs().sum())
                     val = acc
                 abs_vals[seg][part][lbl] = float(val)
@@ -333,9 +309,6 @@ def build_total_move_ratio(base_pro: np.ndarray, base_ama: np.ndarray,
             # 최종 기록
             for part in parts:
                 row[f"{part} 이동비율({lbl},%)"] = rounded[part]
-
-            # 혹시라도 수치 안정용으로 마지막에 한 번 더 재합 보정(안전장치)
-            # (여기서는 최대 0.01 오차 정도만 남을 수 있는데, 표시는 그대로 둔다)
 
         rows.append(row)
 

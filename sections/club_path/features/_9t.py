@@ -66,16 +66,16 @@ def build_shoulder_elbow_x_table(pro_arr: np.ndarray, ama_arr: np.ndarray) -> pd
         expr = f"AR{n} - AL{n}"
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append(["L", n, p, a, p - a])
+        rows.append([n, p, a, p - a])
 
     # R 블록
     for n in range(1, 10):
         expr = f"BG{n} - BA{n}"
         p = _eval_expr(pro_arr, expr)
         a = _eval_expr(ama_arr, expr)
-        rows.append(["R", n, p, a, p - a])
+        rows.append([n, p, a, p - a])
 
-    return pd.DataFrame(rows, columns=["측", "Frame", "프로", "일반", "차이(프로-일반)"])
+    return pd.DataFrame(rows, columns=["Frame", "프로", "일반", "차이(프로-일반)"])
 
 
 

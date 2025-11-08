@@ -59,6 +59,80 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
             ws.write(cur_row, c, df.columns[c], header_fmt)
         ws.set_column(0, max(0, n_cols-1), 14, num_fmt)
 
+        # ── 가로형 하이라이트 (Ama 행만) ─────────────────────────────────
+        # label_col: '구분' 또는 '항목' 중 하나를 자동 사용
+        # ── (우선) 가로형: '구분' 또는 '항목' + 숫자 프레임 컬럼 ─────────────
+        handled_horizontal = False
+        label_col = next((c for c in ["구분", "항목"] if c in df.columns), None)
+        if label_col is not None:
+            frame_cols = [c for c in df.columns if c != label_col and str(c).isdigit()]
+            if frame_cols:
+                handled_horizontal = True
+
+                # (NEW) 라벨 정규화: 프로/일반(=Ama) 대소문자/영문/한글/구분자 처리
+                import re
+                def _norm_role(x: object) -> str | None:
+                    s = "" if x is None else str(x).strip()
+                    # "L · Pro", "R.Pro", "프로", "Ama" 등 → 마지막 토큰을 역할 후보로
+                    parts = re.split(r"\s*[·\.\|\-:]\s*", s.replace(" ", ""))
+                    cand = parts[-1].lower() if parts else s.lower()
+                    if cand.startswith("pro") or cand == "프로":
+                        return "프로"
+                    if cand.startswith("ama") or cand == "일반":
+                        return "일반"
+                    return None
+
+                # 행 라벨을 정규화해서 r_pro / r_ama 찾기
+                r_pro = r_ama = None
+                for ridx, v in df[label_col].items():
+                    role = _norm_role(v)
+                    if role == "프로" and r_pro is None:
+                        r_pro = int(ridx)
+                    elif role == "일반" and r_ama is None:
+                        r_ama = int(ridx)
+
+                # 단순 2행 비교(프로/일반)가 잡히면 Ama 행만 색칠
+                if r_pro is not None and r_ama is not None:
+                    data_start = cur_row + 1  # 헤더 바로 아래
+                    excel_row_pro = data_start + r_pro
+                    excel_row_ama = data_start + r_ama
+
+                    for col_name in frame_cols:
+                        c_idx = df.columns.get_loc(col_name)
+                        col_letter = _col_letter(c_idx)
+
+                        # 빨강: 부호 반대 (Ama 셀만)
+                        formula_red = f'=${col_letter}{excel_row_pro+1}*${col_letter}{excel_row_ama+1}<0'
+                        ws.conditional_format(excel_row_ama, c_idx, excel_row_ama, c_idx, {
+                            'type': 'formula', 'criteria': formula_red, 'format': red_fill
+                        })
+
+                        # 노랑: 부호 같고 상대차이 ≥ 임계치 (Ama 셀만)
+                        formula_yellow = (
+                            f'=AND('
+                            f'${col_letter}{excel_row_pro+1}*${col_letter}{excel_row_ama+1}>=0,'
+                            f'IF(MAX(ABS(${col_letter}{excel_row_pro+1}),ABS(${col_letter}{excel_row_ama+1}))=0,'
+                            f'FALSE,'
+                            f'ABS(${col_letter}{excel_row_pro+1}-${col_letter}{excel_row_ama+1})/'
+                            f'MAX(ABS(${col_letter}{excel_row_pro+1}),ABS(${col_letter}{excel_row_ama+1}))>={DIFF_THRESH}'
+                            f'))'
+                        )
+                        ws.conditional_format(excel_row_ama, c_idx, excel_row_ama, c_idx, {
+                            'type': 'formula', 'criteria': formula_yellow, 'format': yellow_fill
+                        })
+
+                    cur_row += n_rows + 1 + 2
+                    continue  # 다음 테이블로
+
+                # (측면 L/R + 역할 혼합 라벨 케이스는 기존 블록이 처리)
+
+
+                # (기존) 측면(L/R)+역할 라벨 조합 처리 블록이 있다면 여기서 그대로 유지
+
+        # ── 가로형 끝 ─────────────────────────────────────────────────────
+
+
+        # ── (기존) 세로형: Pro↔Ama 컬럼 쌍 찾고 Ama 컬럼만 칠함 ────────────
         headers = list(map(str, df.columns))
         col_index = {h: i for i, h in enumerate(headers)}
         pairs = []
@@ -86,18 +160,12 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
 
             for r in range(data_start, data_end + 1):
                 excel_r = r + 1
-
-                # 빨강: 부호 반대
+                # 빨강: 부호 반대 → Ama만 칠함
                 formula_red = f'=${p_col}{excel_r}*${a_col}{excel_r}<0'
-                ws.conditional_format(r, p_idx, r, p_idx, {
-                    'type': 'formula', 'criteria': formula_red, 'format': red_fill
-                })
                 ws.conditional_format(r, a_idx, r, a_idx, {
                     'type': 'formula', 'criteria': formula_red, 'format': red_fill
                 })
-
-                # 노랑: 부호 같고, 상대차이 ≥ 임계치
-                # =AND($p*$a>=0, IF(MAX(ABS($p),ABS($a))=0, FALSE, ABS($p-$a)/MAX(ABS($p),ABS($a))>=0.3))
+                # 노랑: 부호 같고, 상대차이 ≥ 임계치 → Ama만 칠함
                 formula_yellow = (
                     f'=AND('
                     f'${p_col}{excel_r}*${a_col}{excel_r}>=0,'
@@ -106,14 +174,12 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
                     f'ABS(${p_col}{excel_r}-${a_col}{excel_r})/MAX(ABS(${p_col}{excel_r}),ABS(${a_col}{excel_r}))>={DIFF_THRESH}'
                     f'))'
                 )
-                ws.conditional_format(r, p_idx, r, p_idx, {
-                    'type': 'formula', 'criteria': formula_yellow, 'format': yellow_fill
-                })
                 ws.conditional_format(r, a_idx, r, a_idx, {
                     'type': 'formula', 'criteria': formula_yellow, 'format': yellow_fill
                 })
 
         cur_row += n_rows + 1 + 2
+
 
 
 
@@ -496,52 +562,137 @@ _orig_dataframe = st.dataframe  # 백업
 
 def _build_sign_and_diff_styles(
     df: pd.DataFrame,
-    pair_rules=(("프로", "일반"), ("Pro", "Ama"),("pro_", "ama_"),
-        ("Pro_", "Ama_"),),
+    pair_rules=(("프로", "일반"), ("Pro", "Ama"), ("pro_", "ama_"), ("Pro_", "Ama_")),
     red="#FFC7CE",
     yellow="#FFEB9C",
     percent_threshold: float = 0.30,
 ) -> pd.DataFrame:
-    headers = list(map(str, df.columns))
+    import re
+    headers = list(df.columns)                 # 원본 라벨 유지
+    headers_str = list(map(str, headers))      # 문자열 버전
     col_index = {h: i for i, h in enumerate(headers)}
 
-    # 후보쌍(프로↔일반 / Pro↔Ama) 자동 탐지
+    # ─────────────────────────────────────────────────────────
+    # ① 가로형(행 기반) 표 감지: '구분' 또는 '항목' 라벨 열이 있고
+    #    나머지가 프레임(숫자) 컬럼인 경우
+    # ─────────────────────────────────────────────────────────
+    label_col = next((c for c in ["구분", "항목"] if c in df.columns), None)
+    if label_col is not None:
+        frame_cols = [c for c in df.columns if c != label_col and str(c).isdigit()]
+        if frame_cols:
+            styles = pd.DataFrame("", index=df.index, columns=df.columns)
+
+            # 1) (NEW) 단순 2행 비교: '프로' / '일반' 라벨만 있는 경우
+            label_map = {str(v).strip(): idx for idx, v in df[label_col].items()}
+            if "프로" in label_map and "일반" in label_map:
+                r_pro = label_map["프로"]
+                r_ama = label_map["일반"]
+
+                p = pd.to_numeric(df.loc[r_pro, frame_cols], errors="coerce")
+                a = pd.to_numeric(df.loc[r_ama, frame_cols], errors="coerce")
+
+                red_mask = (p * a) < 0
+                denom = np.maximum(np.abs(p), np.abs(a))
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    rel = np.where(denom > 0, np.abs(p - a) / denom, np.nan)
+                yellow_mask = (~red_mask) & (pd.Series(rel, index=frame_cols) >= percent_threshold)
+
+                # ✅ '일반' 행만 칠하기
+                for c in frame_cols:
+                    if bool(red_mask.get(c, False)):
+                        styles.at[r_ama, c] = f"background-color: {red}"
+                    elif bool(yellow_mask.get(c, False)):
+                        styles.at[r_ama, c] = f"background-color: {yellow}"
+
+                return styles  # 가로형 처리 끝
+
+            # 2) (기존) 측면(L/R) + 역할(프로/일반) 라벨 조합인 경우
+            import re
+            def _parse_side_role(s: str):
+                s = ("" if s is None else str(s)).strip()
+                parts = re.split(r"\s*[·\.]\s*", s.replace(" ", ""))
+                if len(parts) >= 2:
+                    side, role = parts[0], parts[1]
+                else:
+                    return None, None
+                if role in ("프로", "Pro", "pro", "PRO"):
+                    role = "프로"
+                elif role in ("일반", "Ama", "ama", "AMA"):
+                    role = "일반"
+                else:
+                    return None, None
+                return side, role
+
+            side_rows: dict[str, dict[str, object]] = {}
+            for ridx, label in df[label_col].items():
+                side, role = _parse_side_role(label)
+                if side and role:
+                    side_rows.setdefault(side, {})[role] = ridx
+
+            for side, roles in side_rows.items():
+                if not ("프로" in roles and "일반" in roles):
+                    continue
+                r_pro = roles["프로"]
+                r_ama = roles["일반"]
+
+                p = pd.to_numeric(df.loc[r_pro, frame_cols], errors="coerce")
+                a = pd.to_numeric(df.loc[r_ama, frame_cols], errors="coerce")
+
+                red_mask = (p * a) < 0
+                denom = np.maximum(np.abs(p), np.abs(a))
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    rel = np.where(denom > 0, np.abs(p - a) / denom, np.nan)
+                yellow_mask = (~red_mask) & (pd.Series(rel, index=frame_cols) >= percent_threshold)
+
+                # ✅ Ama(일반) 행만 색칠
+                for c in frame_cols:
+                    if bool(red_mask.get(c, False)):
+                        styles.at[r_ama, c] = f"background-color: {red}"
+                    elif bool(yellow_mask.get(c, False)):
+                        styles.at[r_ama, c] = f"background-color: {yellow}"
+
+            return styles
+
+
+    # ─────────────────────────────────────────────────────────
+    # ② (기존) 세로형(열 기반) 비교: Pro↔Ama 쌍 찾기 → Ama만 칠함
+    # ─────────────────────────────────────────────────────────
     pairs = []
-    for h in headers:
+    for h in headers_str:
         for a, b in pair_rules:
             if a in h:
                 cand = h.replace(a, b)
-                if cand in col_index:
-                    pairs.append((h, cand))
+                # headers_str 기준으로 존재 확인
+                if cand in headers_str:
+                    # 원본 라벨로 치환
+                    orig_h = headers[headers_str.index(h)]
+                    orig_cand = headers[headers_str.index(cand)]
+                    pairs.append((orig_h, orig_cand))
     # 중복 제거
     seen, uniq_pairs = set(), []
-    for p, a in pairs:
-        key = tuple(sorted((p, a)))
+    for p_col, a_col in pairs:
+        key = tuple(sorted((str(p_col), str(a_col))))
         if key not in seen:
             seen.add(key)
-            uniq_pairs.append((p, a))
+            uniq_pairs.append((p_col, a_col))
 
     styles = pd.DataFrame("", index=df.index, columns=df.columns)
-
     for p_col, a_col in uniq_pairs:
         p = pd.to_numeric(df[p_col], errors="coerce")
         a = pd.to_numeric(df[a_col], errors="coerce")
 
-        # 1) 빨강: 부호 반대
         red_mask = (p * a) < 0
-
-        # 2) 노랑: 빨강이 아닌 것 중 상대차이 ≥ 임계치
         denom = np.maximum(np.abs(p), np.abs(a))
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             rel = np.where(denom > 0, np.abs(p - a) / denom, np.nan)
         yellow_mask = (~red_mask) & (pd.Series(rel, index=df.index) >= percent_threshold)
 
-        styles.loc[red_mask,   p_col] = f"background-color: {red}"
-        styles.loc[red_mask,   a_col] = f"background-color: {red}"
-        styles.loc[yellow_mask, p_col] = f"background-color: {yellow}"
+        # ✅ Ama 열만 칠한다 (Pro 열은 칠하지 않음)
+        styles.loc[red_mask,    a_col] = f"background-color: {red}"
         styles.loc[yellow_mask, a_col] = f"background-color: {yellow}"
 
     return styles
+
 
 def _apply_highlight_to_styler(styler: Styler, **opts) -> Styler:
     df = styler.data if hasattr(styler, "data") else None

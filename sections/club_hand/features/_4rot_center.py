@@ -72,7 +72,7 @@ def _build_center_table_generic(base_pro: np.ndarray, base_ama: np.ndarray,
         for ax, i in zip(("X","Y","Z"), (0,1,2)):
             p = dp[i]; a = da[i]
             row[f"Pro {ax}"] = f"{p:+.3f}"
-            row[f"Ama {ax}"] = f"{a:+.3f}" + (" ❗" if (p * a < 0) else "")
+            row[f"Ama {ax}"] = f"{a:+.3f}" 
         rows.append(row)
 
     # 세 구간으로만 우선 DataFrame 구성 (3행)

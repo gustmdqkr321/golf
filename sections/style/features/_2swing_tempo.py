@@ -113,14 +113,14 @@ def build_tempo_rhythm_compare(pro: dict, ama: dict) -> pd.DataFrame:
     프로/일반 비교표 (5개 항목 모두, 스타일 포함)
     """
     rows = [
-        ["1", "TOTAL SWING TIME", pro["1_value"], ama["1_value"], pro["1_value"] - ama["1_value"], ""],
-        ["2", "1/7",              pro["2_value"], ama["2_value"], pro["2_value"] - ama["2_value"],
+        [ "TOTAL SWING TIME", pro["1_value"], ama["1_value"], pro["1_value"] - ama["1_value"], ""],
+        [ "1/7",              pro["2_value"], ama["2_value"], pro["2_value"] - ama["2_value"],
             f"P:{pro['tempo_style']}, A:{ama['tempo_style']}"],
-        ["3", "1-4/4-7",          pro["3_value"], ama["3_value"], pro["3_value"] - ama["3_value"],
+        [ "1-4/4-7",          pro["3_value"], ama["3_value"], pro["3_value"] - ama["3_value"],
             f"P:{pro['rhythm_style']}, A:{ama['rhythm_style']}"],
-        ["4", "1/4",              pro["4_value"], ama["4_value"], pro["4_value"] - ama["4_value"],
+        [ "1/4",              pro["4_value"], ama["4_value"], pro["4_value"] - ama["4_value"],
             f"P:{pro['back_style']}, A:{ama['back_style']}"],
-        ["5", "4/7",              pro["5_value"], ama["5_value"], pro["5_value"] - ama["5_value"],
+        [ "4/7",              pro["5_value"], ama["5_value"], pro["5_value"] - ama["5_value"],
             f"P:{pro['down_style']}, A:{ama['down_style']}"],
     ]
-    return pd.DataFrame(rows, columns=["No", "검사항목", "프로", "일반", "차이(프로-일반)", "스타일"])
+    return pd.DataFrame(rows, columns=["검사항목", "프로", "일반", "차이(프로-일반)", "스타일"])
