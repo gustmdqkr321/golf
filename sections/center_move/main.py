@@ -185,7 +185,7 @@ def run(ctx=None):
     tables["스윙이동평가지표(swing movement evalution indicators)"] = smdi
 
     # 2) ΔX
-    st.markdown("### 무게중심 X")
+    st.markdown("### Mass Center X")
     dx = feat.build_delta_x_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("Mass Center X", dx), use_container_width=True)
     tables["Mass Center X"] = dx
@@ -193,7 +193,7 @@ def run(ctx=None):
     st.divider()
 
     # 3) ΔY
-    st.markdown("### 수직중심 Y")
+    st.markdown("### Mass Center Y")
     dy = feat.build_delta_y_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("Mass Center Y", dy), use_container_width=True)
     tables["Mass Center Y"] = dy
@@ -201,7 +201,7 @@ def run(ctx=None):
     st.divider()
 
     # 4) ΔZ
-    st.markdown("### 무게중심 Z")
+    st.markdown("### Mass Center Z")
     dz = feat.build_delta_z_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("Mass Center Z", dz), use_container_width=True)
     tables["Mass Center Z"] = dz
@@ -209,7 +209,7 @@ def run(ctx=None):
     st.divider()
 
     # 5) Summary
-    st.markdown("### Summary")
+    st.markdown("### Mass Center X,Y, Z Summary")
     sm = feat.build_summary_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("Mass Center X,Y, Z Summary", sm), use_container_width=True)
     st.download_button("CSV 내려받기 (Summary)", sm.to_csv(index=False).encode("utf-8-sig"),
@@ -218,7 +218,7 @@ def run(ctx=None):
 
     # ── Part Movement ────────────────────────────────────────────
     st.divider()
-    st.subheader("Part Movement (Δ between frames)")
+    st.subheader("Part Movement")
 
     st.markdown("**Knee**")
     knee = move.build_movement_table_knee(pro_arr, ama_arr)
@@ -242,52 +242,52 @@ def run(ctx=None):
 
     # ── Total Move / Ratio ───────────────────────────────────────
     st.divider()
-    st.subheader("Total Move (abs sum)")
+    st.subheader("Total PartMovement X,Y,Z Sum")
     tm = move.build_total_move(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Total PartMovement X,Y,Z Sum", tm), use_container_width=True)
     tables["Total PartMovement X,Y,Z Sum"] = tm
 
     st.divider()
-    st.subheader("Move Ratio (%)")
+    st.subheader("Total PartMovement X,Y,Z Sum Percentile")
     tr = move.build_total_move_ratio(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Total PartMovement X,Y,Z Sum Percentile", tr), use_container_width=True)
     tables["Total PartMovement X,Y,Z Sum Percentile"] = tr
 
     # ── 1-10 Abs Move & X/Y Report ───────────────────────────────
     st.divider()
-    st.subheader("z축 변화량 최종표")
+    st.subheader("z Change")
     dfz = zmove.build_z_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("z Change", dfz), use_container_width=True)
     tables["z Change"] = dfz
 
     st.divider()
-    st.markdown("### X 축 변화량 최종표")
+    st.subheader("X Change"))
     dfx = zmove.build_x_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("X Change", dfx), use_container_width=True)
     tables["X Change"] = dfx
 
     st.divider()
-    st.markdown("### Y 축 변화량 전체표")
+    st.subheader("Y Change")
     dfy = zmove.build_y_report_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Y Change", dfy), use_container_width=True)
     tables["Y Change"] = dfy
 
     # ── Tilt / Speed ─────────────────────────────────────────────
-    st.subheader("골반 어깨 좌우 높이 차이 및 속도와 힘")
+    st.subheader("Tilt of Pelvic and Shoulder and Velocity & Force")
     df_tilt = speed.compute_tilt_report(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Tilt of Pelvic and Shoulder and Velocity & Force 1", df_tilt),
                  use_container_width=True)
     tables["Tilt of Pelvic and Shoulder and Velocity & Force 1"] = df_tilt
 
     st.divider()
-    st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
+    st.subheader("Tilt of Pelvic and Shoulder and Velocity & Force2")
     df_delta = speed.build_tilt_delta_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Tilt of Pelvic and Shoulder and Velocity & Force 2", df_delta),
                  use_container_width=True)
     tables["Tilt of Pelvic and Shoulder and Velocity & Force 2"] = df_delta
 
     st.divider()
-    st.subheader("골반 및 어깨 좌우 높이 차이와 속도, 힘")
+    st.subheader("Tilt of Pelvic and Shoulder and Velocity & Force3")
     df_speed = speed.build_tilt_speed_summary_table(pro_arr, ama_arr, "Pro", "Ama")
     st.dataframe(_style_with_key("Tilt of Pelvic and Shoulder and Velocity & Force 3", df_speed),
                  use_container_width=True)

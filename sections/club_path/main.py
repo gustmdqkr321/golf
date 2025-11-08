@@ -188,7 +188,7 @@ def run(ctx=None):
     )
 
     st.divider()
-    st.subheader("CHD")
+    st.subheader("4.2.3 L Wri/ CHD X")
     df_cnax = chd.build_cn_ax_1_10_table(base_pro, base_ama)
     st.dataframe(
         _style_with_key("4.2.3 L Wri/ CHD X", df_cnax),
@@ -196,13 +196,13 @@ def run(ctx=None):
     )
 
     st.divider()
-    st.subheader("Yaw")
+    st.subheader("Both Sho Center/Wri. Horizon Rot Ang. Z(Yaw Ang)")
     df_yaw = yaw.build_yaw_compare_table(ctx["pro_arr"], ctx["ama_arr"])
     st.dataframe(_style_with_key("Both Sho Center/Wri. Horizon Rot Ang. Z(Yaw Ang)", df_yaw),
                  use_container_width=True)
 
     st.divider()
-    st.subheader("Vertical")
+    st.subheader("Both Sho Center/Wri. Vertical Rot Ang. Z(Yaw Ang)")
     df_pitch = vert.build_pitch_compare_table(ctx["pro_arr"], ctx["ama_arr"])
     st.dataframe(_style_with_key("Both Sho Center/Wri. Vertical Rot Ang. Z(Yaw Ang)", df_pitch),
                  use_container_width=True)
@@ -210,11 +210,11 @@ def run(ctx=None):
     st.divider()
     df1, df2 = mid.build_midpoint_tables(base_pro, base_ama)
 
-    st.subheader("2.2.4.6")
+    st.subheader("2.2.4.6 Both Sho Center/Elb X, Z")
     st.dataframe(_style_with_key("2.2.4.6 Both Sho Center/Elb X, Z", df1),
                  use_container_width=True)
 
-    st.subheader("2.2.4.7")
+    st.subheader("2.2.4.7 BOT SHO CENTER/WRI X,Z")
     st.dataframe(_style_with_key("2.2.4.7 BOT SHO CENTER/WRI X,Z", df2),
                  use_container_width=True)
 

@@ -136,7 +136,7 @@ def run(ctx=None):
         st.divider()
 
         # 2) L WRI/CLU (CP1 − AZ1) — 기존 posture 비교표 활용
-        st.subheader("2.1.1.2")
+        st.subheader("2.1.1.2 Posture all")
         df_posture = pos.build_posture_compare(pro_arr, ama_arr)
         st.dataframe(
             df_posture.style.format({"프로": "{:.2f}", "일반": "{:.2f}", "차이(프로-일반)": "{:+.2f}"}),

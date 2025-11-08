@@ -28,6 +28,7 @@ def _safe_sheet(name: str, used: set[str]) -> str:
    
 def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[str, pd.DataFrame]):
     wb = writer.book
+    base_fmt     = wb.add_format({'border': 1, 'border_color': '#000000'})                 # ★ 모든 셀 기본
     num_fmt    = wb.add_format({'num_format': '0.00'})
     title_fmt  = wb.add_format({'bold': True, 'font_size': 12})
     header_fmt = wb.add_format({'bold': True, 'bg_color': '#F2F2F2', 'border': 1})
@@ -57,8 +58,8 @@ def _write_section_sheet(writer: pd.ExcelWriter, sheet_name: str, tables: dict[s
         n_rows, n_cols = df.shape
         for c in range(n_cols):
             ws.write(cur_row, c, df.columns[c], header_fmt)
-        ws.set_column(0, max(0, n_cols-1), 14, num_fmt)
 
+        ws.set_column(0, max(0, n_cols-1), 14, num_fmt)
         # ── 가로형 하이라이트 (Ama 행만) ─────────────────────────────────
         # label_col: '구분' 또는 '항목' 중 하나를 자동 사용
         # ── (우선) 가로형: '구분' 또는 '항목' + 숫자 프레임 컬럼 ─────────────

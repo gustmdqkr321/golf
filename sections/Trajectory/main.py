@@ -183,7 +183,7 @@ def run(ctx=None):
     tables["4_4_2_Clubhead_Loft"] = df_loft
 
     st.divider()
-    st.subheader("6/7/8 L WRI/CHD Y and Ang")
+    st.subheader("L WRI/CHD Y and Ang")
     df_ang_wri = ang.build_wri_chd_angle_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("L_WRI_CHD_Y_and_Ang", df_ang_wri), use_container_width=True)
     tables["L_WRI_CHD_Y_and_Ang"] = df_ang_wri
@@ -195,7 +195,7 @@ def run(ctx=None):
     tables["손목, 어깨 y차이각, 골반/어깨 틸트, 어깨/팔 거리"] = df_metrics
 
     st.divider()
-    st.subheader("Arm / Shoulder Angles")
+    st.subheader("4 Flat/Upright")
     df_armsho = sum2.build_arm_shoulder_angle_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("4 Flat/Upright", df_armsho), use_container_width=True)
     tables["4 Flat/Upright"] = df_armsho
