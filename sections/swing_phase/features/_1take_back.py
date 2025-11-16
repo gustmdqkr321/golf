@@ -50,8 +50,8 @@ _ITEMS: list[tuple[str, str, str]] = [
     ( "SHO",      "1/2 R SHO  X",                  "BA2 - BA1"),
     ( "SHO",      "1/2 R SHO  Y",                  "BB2 - BB1"),
     ( "SHO",      "1/2 R SHO  Z",                  "BC2 - BC1"),   # 공식확인 → 무시
-    ( "SHO/ELB",  "1/2 R SHO/ELB  SYN X",          "(BA2 - BA1) - (BG2 - BG1)"),
-    ( "SHO/ELB",  "1/2 R SHO/ELB  SYN Y",          "(BH2 - BH1) - (BB2 - BB1)"),
+    ( "SHO/ELB",  "1/2 R SHO/ELB  SYN X",          "(BG2 - BG1) - (BA2 - BA1)"),
+    ( "SHO/ELB",  "1/2 R SHO/WRI  SYN X",          "(BM2 - BM1) - (BA2 - BA1)"),
     ( "WAI",      "1/2 R WAI  X",                  "K2 - K1"),
     ( "WAI",      "1/2 R WAI  Y",                  "L2 - L1"),
     ( "WAI",      "1/2 R WAI  Z",                  "M2 - M1"),

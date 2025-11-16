@@ -241,3 +241,77 @@ def build_all_tables(
 
     return ForceResult(main, opp, same3)
 
+# ─────────────────────────────────────────────────────────────
+# ✅ 부위별 Total + 비율표 (이미지와 동일 형식)
+#    - Total(무릎/골반/어깨/손/클럽): Σ_{frame=BH..FH2} Σ_{axis=X,Y,Z} |F|
+#    - Body = 무릎+골반+어깨
+#    - Body/Wri = Body ÷ 손
+#    - Wri/Club = 손 ÷ 클럽
+#    - 표시는 이미지처럼 "2561÷901= 2.84" 형식
+# ─────────────────────────────────────────────────────────────
+
+def _sum_abs_xyz(F: np.ndarray) -> float:
+    """(9,3) force 배열의 절댓값 합(스칼라)"""
+    return float(np.nansum(np.abs(F)))
+
+def _part_totals(pro_arr: np.ndarray, ama_arr: np.ndarray, part: str, mass: float) -> tuple[float, float]:
+    """해당 part의 Pro/Ama Σ|F| 스칼라 합산 반환"""
+    C_r = _center_series(pro_arr, part)
+    C_h = _center_series(ama_arr, part)
+    t_r = extract_times(pro_arr)
+    t_h = extract_times(ama_arr)
+    F_r = _segment_forces(C_r, t_r, mass=mass)  # (9,3)
+    F_h = _segment_forces(C_h, t_h, mass=mass)
+    return _sum_abs_xyz(F_r), _sum_abs_xyz(F_h)
+
+def build_totals_ratio_table(
+    pro_arr: np.ndarray,
+    ama_arr: np.ndarray,
+    *,
+    mass: float = 60.0,
+    pro_label: str = "로리",
+    ama_label: str = "홍",
+) -> pd.DataFrame:
+    """
+    이미지 예시와 같은 2열 요약표 생성:
+      행: Total(무릎) … Total(손) / 클럽 / Body(무릎+골반+어깨) / Body/Wri / Wri/Club
+      열: pro_label, ama_label
+    """
+    # 각 부위 Total(Σ|F|)
+    k_p, k_a = _part_totals(pro_arr, ama_arr, "knee",     mass)
+    p_p, p_a = _part_totals(pro_arr, ama_arr, "pelvis",   mass)
+    s_p, s_a = _part_totals(pro_arr, ama_arr, "shoulder", mass)
+    w_p, w_a = _part_totals(pro_arr, ama_arr, "wrist",    mass)
+    c_p, c_a = _part_totals(pro_arr, ama_arr, "clubhead", mass)
+
+    # Body = 무릎+골반+어깨
+    body_p = k_p + p_p + s_p
+    body_a = k_a + p_a + s_a
+
+    # 보기 맞춤: 표의 숫자는 정수로 보이도록 반올림
+    def I(x): return int(round(float(x)))
+    r = []
+
+    r.append([f"Total(무릎)",   I(k_p), I(k_a)])
+    r.append([f"Total(골반)",   I(p_p), I(p_a)])
+    r.append([f"Total(어깨)",   I(s_p), I(s_a)])
+    r.append([f"Total(손)",     I(w_p), I(w_a)])
+    r.append([f"클럽",          I(c_p), I(c_a)])
+    r.append([f"Body(무릎+골반+어깨)", I(body_p), I(body_a)])
+
+    # 비율 행: "2561÷901= 2.84" 형식
+    def ratio_text(num: float, den: float) -> str:
+        nI, dI = I(num), I(den)
+        if dI == 0:
+            return f"{nI}÷{dI}= -"
+        return f"{nI/dI:.2f}"
+
+    r.append([ "Body/Wri", ratio_text(body_p, w_p), ratio_text(body_a, w_a) ])
+    r.append([ "Wri/Club", ratio_text(w_p,  c_p),  ratio_text(w_a,  c_a)  ])
+
+    df = pd.DataFrame(r, columns=["", pro_label, ama_label])
+
+    # 엑셀/스타일용(파란색 표시를 원하면 이 meta를 활용하세요)
+    df.attrs["blue_rows"] = list(range(len(df)))  # 전행 파란색 같은 처리 시 사용
+
+    return df

@@ -101,6 +101,19 @@ def run(ctx=None):
         except Exception as e:
             st.warning(f"{label} Force 계산 중 오류: {e}")
 
+    try:
+        df_tot = fc.build_totals_ratio_table(
+            pro_arr, ama_arr,
+            mass=mass,
+            pro_label="pro",
+            ama_label="ama",
+        )
+        st.subheader("힘 스타일")
+        st.dataframe(df_tot, use_container_width=True)
+        section_tables["힘 스타일"] = df_tot
+    except Exception as e:
+        st.warning(f"Force 요약표 생성 중 오류: {e}")
+
     # ── Torque 표들 (순서대로 쭉 출력, 요약=abs-sum 고정) ──
     for part, label in _TORQUE_PARTS:
         try:

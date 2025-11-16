@@ -10,10 +10,34 @@ from .features import _2rot_ang as rot
 from .features import _3TDD as tdd
 from .features import _4rot_center as rc
 from .features import _5summ as misc
+from .features import _6_sequance as kseq
+from .features import _7_47t as f47
+from .features import _add as accel
 
 # ── 세션 저장소 초기화 (마스터 병합용) ────────────────────────────────────────
 if "section_tables" not in st.session_state:
     st.session_state["section_tables"] = {}   # {section_id: {"title": str, "tables": dict[str, DataFrame]}}
+
+def _letters(n: int) -> list[str]:
+    """0..n-1 -> A,B,...,Z,AA,AB..."""
+    out = []
+    for i in range(n):
+        s = ""
+        x = i
+        while True:
+            s = chr(x % 26 + 65) + s
+            x = x // 26 - 1
+            if x < 0:
+                break
+        out.append(s)
+    return out
+
+def _arr_to_letter_df(arr) -> pd.DataFrame:
+    """numpy 2D 배열 -> A,B,C... 컬럼명의 DataFrame"""
+    df = pd.DataFrame(arr)
+    df.columns = _letters(df.shape[1])
+    return df
+
 
 # ── 유틸: 시트명 안전화 ─────────────────────────────────────────────────────
 def _safe_sheet(name: str, used: set[str]) -> str:
@@ -135,6 +159,10 @@ CH_TABLE_STYLES: dict[str, tuple[str, list[int]]] = {
     "클럽헤드/손 운동량과 힘": ("", IDX_BASIC),
     "왼팔 수평/수직 회전각도": ("", IDX_LEFT),
     "클럽 수평/수직 회전각도": ("", IDX_CLUB),
+    "손/클럽 프레임별 가속도": ("", []),
+    "4–7 구간 힘/토크 요약": ("", []),
+    "4–7 구간 힘/토크 (프레임별)": ("", []),
+    "키네마틱 시퀀스": ("", []),
     "무릎 TDD": ("", IDX_KNEE_TDD),
     "무릎 수평/수직 회전각도": ("", IDX_KNEE_ROT),
     "골반 TDD": ("", IDX_PELVIS_TDD),
@@ -177,6 +205,35 @@ def run(ctx=None):
                 "임팩트 순간 힘(N)": "{:.2f}",
                 "ADD→TOP 평균속도(m/s) 비율(로리=100)": "{:.2f}",
                 "임팩트 순간 힘(N) 비율(로리=100)": "{:.2f}",
+            },
+        ),
+        use_container_width=True
+    )
+        # ─────────────────────────────────────────────────────────
+    # ✅ 손/클럽 프레임별 가속도 (1번과 2번 사이, 동일 스타일 적용)
+    #    - base numpy 배열 → A,B,C,... 컬럼의 DF로 변환해서 피처 함수 사용
+    # ─────────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("손/클럽 프레임별 가속도")
+    df_pro_base = _arr_to_letter_df(pro_arr)
+    df_ama_base = _arr_to_letter_df(ama_arr)
+
+    df_accel = accel.build_hand_club_accel_table(
+        df_pro_base, df_ama_base,
+        time_col="B",      # 시간열(B): ms 또는 s 자동 처리
+        pro_label="Pro",
+        ama_label="Ama",
+    )
+
+    st.dataframe(
+        _style_with_key(
+            "손/클럽 프레임별 가속도",
+            df_accel,
+            fmt={
+                "손 가속도(m/s²) - Pro":   "{:.2f}",
+                "손 가속도(m/s²) - Ama":   "{:.2f}",
+                "클럽 가속도(m/s²) - Pro": "{:.2f}",
+                "클럽 가속도(m/s²) - Ama": "{:.2f}",
             },
         ),
         use_container_width=True
@@ -307,12 +364,72 @@ def run(ctx=None):
         }),
         use_container_width=True
     )
+        # (위) 손/클럽 프레임별 가속도 블록까지 동일
+    # (위) 4–7 구간 힘/토크 (요약/프레임별) 출력까지 끝난 지점 바로 아래에 추가
+    st.divider()
+    st.subheader("키네마틱 시퀀스")
+
+    # kseq는 손/클럽 평균가속도(df_accel) + 무릎/골반/어깨 TDD(내부에서 재사용)를 기반으로 표를 만든다
+    df_seq = kseq.build_kinematic_sequence_table(
+        pro_arr, ama_arr, df_accel,
+        pro_name="프로", ama_name="아마", rot_to_m=0.01
+    )
+    st.dataframe(
+        df_seq.style.format({
+            "프로 Back 값": "{:.2f}",
+            "프로 Down 값": "{:.2f}",
+            "아마 Back 값": "{:.2f}",
+            "아마 Down 값": "{:.2f}",
+        }),
+        use_container_width=True
+    )
+
+    # ─────────────────────────────────────────────────────────
+    # ✅ 4–7 구간 힘/토크 (요약 & 프레임별) — 가속도 바로 다음
+    # ─────────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("회전, 수직, 직선력")
+
+    # f47은 base를 A,B,C... 레터 DF로 받으므로 변환
+    df_pro_base = _arr_to_letter_df(pro_arr)
+    df_ama_base = _arr_to_letter_df(ama_arr)
+
+    res47 = f47.build_47_forces_and_torque(
+        df_pro_base, df_ama_base,
+        mass=float(ctx.get("mass", 60.0)),
+        pro_label="Pro", ama_label="Ama",
+    )
+
+    # (1) 요약표
+    st.markdown("**요약 (평균±표준편차 / 비율)**")
+    st.dataframe(
+        _style_with_key("4–7 구간 힘/토크 요약", res47.table_summary),
+        use_container_width=True
+    )
+
+    # (2) 프레임별
+    st.markdown("**프레임별 값**")
+    st.dataframe(
+        _style_with_key(
+            "4–7 구간 힘/토크 (프레임별)",
+            res47.table_perframe,
+            fmt={
+                "토크|τ|(N·m)": "{:.2f}",
+                "회전력 F_rot(N)": "{:.2f}",
+                "Y등가힘 F_y(N)": "{:.2f}",
+                "Z등가힘 F_z(N)": "{:.2f}",
+            },
+        ),
+        use_container_width=True
+    )
+
 
 
     # ── 단일 시트 엑셀 다운로드 + 마스터 등록 ────────────────────────────────
     # 섹션 내 모든 표를 dict로 모아 순서대로 한 시트에 쌓아 쓴다
     tables = {
         "클럽헤드/손 운동량과 힘": df_basic,
+        "Hand & Club Average Acceleration(구간별 평균가속도)": df_accel,
         "왼팔 수평/수직 회전각도":            df_left,
         "클럽 수평/수직 회전각도":                df_club,
         "무릎 TDD":                     df_knee,
@@ -326,7 +443,10 @@ def run(ctx=None):
         "무릎 회전 중심":                  df_k,
         "통합표":      df_center,
         "회전각 요약(구간별)": df_rot_summary,
-        "TDD 요약(구간별)": df_tdd_summary,  # ✅ 추가
+        "TDD 요약(구간별)": df_tdd_summary,
+        "키네마틱 시퀀스": df_seq,  
+        "회전, 수직, 직선력 요약": res47.table_summary,
+        "회전, 수직, 직선력 (프레임별)": res47.table_perframe,
     }
 
     # 1) 단일 시트(All) 엑셀 다운로드 버튼
