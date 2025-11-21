@@ -10,6 +10,29 @@ import io, re
 import pandas as pd
 
 
+# === 자동 탐색용 고정 파일명 ===
+RAINBOW_FILENAME = "first_data_transition.xlsx"  # 무지개(기존) 엑셀
+GS_FILENAME      = "CsvExport.csv"               # GS CSV
+
+from pathlib import Path
+
+def _find_file(root: str | Path, filename: str, recursive: bool = True) -> Path | None:
+    """root 폴더에서 filename을 찾는다. recursive=True면 하위 폴더도 탐색."""
+    try:
+        base = Path(root).expanduser()
+        if not base.exists():
+            return None
+        direct = base / filename
+        if direct.exists():
+            return direct
+        if recursive:
+            for p in base.rglob(filename):
+                return p
+    except Exception:
+        pass
+    return None
+
+
 # 세션 저장소 초기화
 if "section_tables" not in st.session_state:
     st.session_state["section_tables"] = {}   # {section_id: {"title": str, "tables": dict[str, DataFrame]}}
@@ -455,48 +478,67 @@ def try_read_gs_default(p: str | Path | None, sep=","):
 st.title("🧩 Modular Streamlit App")
 st.caption("메인앱에서 파일 업로드 → 섹션에 컨텍스트 전달 → 섹션이 로직을 호출해 UI 렌더")
 
-# ── 사이드바 업로드 ─────────────────────────────────────────────────────────
+# ── 사이드바 업로드 (여러 파일 드래그&드롭) ──────────────────────────────────
 with st.sidebar:
-    st.header("업로드")
-    pro_file = st.file_uploader("프로 엑셀(.xlsx)", type=["xlsx"], key="pro_file")
-    ama_file = st.file_uploader("일반 엑셀(.xlsx)", type=["xlsx"], key="ama_file")
-    st.divider()
-    gs_pro_file = st.file_uploader("프로 GS(.csv)", type=["csv"], key="gs_pro_file")
-    gs_ama_file = st.file_uploader("일반 GS(.csv)", type=["csv"], key="gs_ama_file")
+    st.header("업로드 (드래그&드롭, 여러 파일)")
+    st.caption(
+        f"각 드롭존에 '{RAINBOW_FILENAME}'(엑셀)와 '{GS_FILENAME}'(CSV)를 함께 올리세요.\n"
+        "이름으로 자동 식별합니다."
+    )
+    pro_files = st.file_uploader("프로 파일 묶음 (.xlsx .csv)", type=["xlsx", "csv"],
+                                 accept_multiple_files=True, key="multi_pro")
+    ama_files = st.file_uploader("일반 파일 묶음 (.xlsx .csv)", type=["xlsx", "csv"],
+                                 accept_multiple_files=True, key="multi_ama")
 
-# ── 파일 선택: 업로드 > 디폴트 ──────────────────────────────────────────────
-if pro_file:
-    pro_arr = read_xlsx_to_array(pro_file)
-    pro_name = pro_file.name
+def _pick_by_name(files, rb_name: str, gs_name: str):
+    """업로드된 파일들 중 무지개/GS를 파일명으로 골라 반환."""
+    rb, gs = None, None
+    if files:
+        for f in files:
+            name = f.name.strip()
+            low = name.lower()
+            # 무지개 파일: 정확매칭 우선, 느슨한 매칭 보조
+            if low == rb_name.lower() or "first_data_transition" in low:
+                rb = f
+            # GS 파일: 정확매칭 우선, 느슨한 매칭 보조
+            if low == gs_name.lower() or "csvexport" in low:
+                gs = f
+    return rb, gs
+
+# ── 파일 선택: 업로드(멀티) > 디폴트 ────────────────────────────────────────
+pro_arr = None; pro_name = None
+ama_arr = None; ama_name = None
+gs_pro_arr = None; gs_pro_name = None
+gs_ama_arr = None; gs_ama_name = None
+
+# 프로 묶음
+if pro_files:
+    rb, gs = _pick_by_name(pro_files, RAINBOW_FILENAME, GS_FILENAME)
+    if rb is not None:
+        pro_arr = read_xlsx_to_array(rb); pro_name = rb.name
+    if gs is not None:
+        gs_pro_arr = read_gs_csv_raw(gs, sep=","); gs_pro_name = gs.name
 elif USE_CODE_DEFAULTS:
     pro_arr, pro_name = try_read_default(DEFAULT_PRO_PATH)
-else:
-    pro_arr, pro_name = None, None
+    gs_pro_arr, gs_pro_name = try_read_gs_default(DEFAULT_GS_PRO_PATH, sep=",")
 
-if ama_file:
-    ama_arr = read_xlsx_to_array(ama_file)
-    ama_name = ama_file.name
+# 일반 묶음
+if ama_files:
+    rb, gs = _pick_by_name(ama_files, RAINBOW_FILENAME, GS_FILENAME)
+    if rb is not None:
+        ama_arr = read_xlsx_to_array(rb); ama_name = rb.name
+    if gs is not None:
+        gs_ama_arr = read_gs_csv_raw(gs, sep=","); gs_ama_name = gs.name
 elif USE_CODE_DEFAULTS:
     ama_arr, ama_name = try_read_default(DEFAULT_AMA_PATH)
-else:
-    ama_arr, ama_name = None, None
-
-# GS (csv) — DataFrame으로, header=None
-if gs_pro_file:
-    gs_pro_arr = read_gs_csv_raw(gs_pro_file, sep=",")   # 필요하면 sep=";"로
-    gs_pro_name = gs_pro_file.name
-elif USE_CODE_DEFAULTS:
-    gs_pro_arr, gs_pro_name = try_read_gs_default(DEFAULT_GS_PRO_PATH, sep=",")
-else:
-    gs_pro_arr, gs_pro_name = None, None
-
-if gs_ama_file:
-    gs_ama_arr = read_gs_csv_raw(gs_ama_file, sep=",")
-    gs_ama_name = gs_ama_file.name
-elif USE_CODE_DEFAULTS:
     gs_ama_arr, gs_ama_name = try_read_gs_default(DEFAULT_GS_AMA_PATH, sep=",")
-else:
-    gs_ama_arr, gs_ama_name = None, None
+
+# 업로드 상태 표시
+with st.sidebar:
+    def _ok(x): return "✅" if x is not None else "⚠️"
+    st.write(f"프로: 무지개 {_ok(pro_arr)} / GS {_ok(gs_pro_arr)}")
+    st.write(f"일반: 무지개 {_ok(ama_arr)} / GS {_ok(gs_ama_arr)}")
+
 
 
 
