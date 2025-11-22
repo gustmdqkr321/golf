@@ -13,6 +13,7 @@ import pandas as pd
 # === 자동 탐색용 고정 파일명 ===
 RAINBOW_FILENAME = "first_data_transition.xlsx"  # 무지개(기존) 엑셀
 GS_FILENAME      = "CsvExport.csv"               # GS CSV
+GEARS_FILENAME   = "gears_raw_preprocessed.csv"  # ✅ 원자료(프로/아마 각각)
 
 from pathlib import Path
 
@@ -482,63 +483,74 @@ st.caption("메인앱에서 파일 업로드 → 섹션에 컨텍스트 전달 �
 with st.sidebar:
     st.header("업로드 (드래그&드롭, 여러 파일)")
     st.caption(
-        f"각 드롭존에 '{RAINBOW_FILENAME}'(엑셀)와 '{GS_FILENAME}'(CSV)를 함께 올리세요.\n"
-        "이름으로 자동 식별합니다."
+        f"각 드롭존에 '{RAINBOW_FILENAME}'(엑셀), '{GS_FILENAME}'(CSV), "
+        f"'{GEARS_FILENAME}'(CSV)을 **같이** 올리면 이름으로 자동 인식합니다."
     )
     pro_files = st.file_uploader("프로 파일 묶음 (.xlsx .csv)", type=["xlsx", "csv"],
                                  accept_multiple_files=True, key="multi_pro")
     ama_files = st.file_uploader("일반 파일 묶음 (.xlsx .csv)", type=["xlsx", "csv"],
                                  accept_multiple_files=True, key="multi_ama")
 
-def _pick_by_name(files, rb_name: str, gs_name: str):
-    """업로드된 파일들 중 무지개/GS를 파일명으로 골라 반환."""
-    rb, gs = None, None
+def _pick_by_name(files, rb_name: str, gs_name: str, gears_name: str):
+    """업로드된 파일들 중 무지개/GS/GEARS를 파일명으로 골라 반환."""
+    rb, gs, gears = None, None, None
     if files:
         for f in files:
-            name = f.name.strip()
-            low = name.lower()
-            # 무지개 파일: 정확매칭 우선, 느슨한 매칭 보조
+            low = f.name.strip().lower()
+            # 무지개
             if low == rb_name.lower() or "first_data_transition" in low:
                 rb = f
-            # GS 파일: 정확매칭 우선, 느슨한 매칭 보조
+            # GS
             if low == gs_name.lower() or "csvexport" in low:
                 gs = f
-    return rb, gs
+            # GEARS
+            if low == gears_name.lower() or "gears_raw_preprocessed" in low:
+                gears = f
+    return rb, gs, gears
+
 
 # ── 파일 선택: 업로드(멀티) > 디폴트 ────────────────────────────────────────
 pro_arr = None; pro_name = None
 ama_arr = None; ama_name = None
 gs_pro_arr = None; gs_pro_name = None
 gs_ama_arr = None; gs_ama_name = None
+# ✅ 프로/아마 원자료
+gears_pro_df = None; gears_pro_name = None
+gears_ama_df = None; gears_ama_name = None
 
 # 프로 묶음
 if pro_files:
-    rb, gs = _pick_by_name(pro_files, RAINBOW_FILENAME, GS_FILENAME)
+    rb, gs, gears = _pick_by_name(pro_files, RAINBOW_FILENAME, GS_FILENAME, GEARS_FILENAME)
     if rb is not None:
         pro_arr = read_xlsx_to_array(rb); pro_name = rb.name
     if gs is not None:
         gs_pro_arr = read_gs_csv_raw(gs, sep=","); gs_pro_name = gs.name
+    if gears is not None:
+        gears_pro_df = read_csv_df_robust(gears, header=0); gears_pro_name = gears.name
 elif USE_CODE_DEFAULTS:
     pro_arr, pro_name = try_read_default(DEFAULT_PRO_PATH)
     gs_pro_arr, gs_pro_name = try_read_gs_default(DEFAULT_GS_PRO_PATH, sep=",")
+    # 필요하면 여기서 프로 gears 디폴트 경로도 설정 가능
 
 # 일반 묶음
 if ama_files:
-    rb, gs = _pick_by_name(ama_files, RAINBOW_FILENAME, GS_FILENAME)
+    rb, gs, gears = _pick_by_name(ama_files, RAINBOW_FILENAME, GS_FILENAME, GEARS_FILENAME)
     if rb is not None:
         ama_arr = read_xlsx_to_array(rb); ama_name = rb.name
     if gs is not None:
         gs_ama_arr = read_gs_csv_raw(gs, sep=","); gs_ama_name = gs.name
+    if gears is not None:
+        gears_ama_df = read_csv_df_robust(gears, header=0); gears_ama_name = gears.name
 elif USE_CODE_DEFAULTS:
     ama_arr, ama_name = try_read_default(DEFAULT_AMA_PATH)
     gs_ama_arr, gs_ama_name = try_read_gs_default(DEFAULT_GS_AMA_PATH, sep=",")
+    # 필요하면 여기서 아마 gears 디폴트 경로도 설정 가능
 
 # 업로드 상태 표시
 with st.sidebar:
     def _ok(x): return "✅" if x is not None else "⚠️"
-    st.write(f"프로: 무지개 {_ok(pro_arr)} / GS {_ok(gs_pro_arr)}")
-    st.write(f"일반: 무지개 {_ok(ama_arr)} / GS {_ok(gs_ama_arr)}")
-
+    st.write(f"프로: 무지개 {_ok(pro_arr)} / GS {_ok(gs_pro_arr)} / GEARS {_ok(gears_pro_df)}")
+    st.write(f"일반: 무지개 {_ok(ama_arr)} / GS {_ok(gs_ama_arr)} / GEARS {_ok(gears_ama_df)}")
 
 
 
@@ -548,13 +560,20 @@ ctx = {
     "ama_arr": ama_arr,
     "gs_pro_arr": gs_pro_arr,
     "gs_ama_arr": gs_ama_arr,
+    # ✅ 프로/아마 원자료 DataFrame
+    "gears_pro_df": gears_pro_df,
+    "gears_ama_df": gears_ama_df,
     "files": {
         "pro_name": pro_name,
         "ama_name": ama_name,
         "gs_pro_name": gs_pro_name,
         "gs_ama_name": gs_ama_name,
+        # ✅ 파일명도 함께
+        "gears_pro_name": gears_pro_name,
+        "gears_ama_name": gears_ama_name,
     },
 }
+
 
 # ── 섹션 검색/선택 ───────────────────────────────────────────────────────────
 sections = discover_sections(SECTIONS_DIR)

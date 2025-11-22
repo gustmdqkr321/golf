@@ -2,6 +2,7 @@
 from __future__ import annotations
 import streamlit as st
 import pandas as pd
+import numpy as np
 import io, re
 from datetime import datetime
 
@@ -38,6 +39,17 @@ def _arr_to_letter_df(arr) -> pd.DataFrame:
     df.columns = _letters(df.shape[1])
     return df
 
+
+def _clean_loc(s: object) -> object:
+    if not isinstance(s, str):
+        return s
+    # 1) Pro/프로/Ama/아마 토큰 제거
+    s = re.sub(r'\b(Pro|프로|Ama|아마)\b', '', s, flags=re.IGNORECASE)
+    # 2) 남는 구분자/여백 정리 (하이픈/대시 양옆 공백 -> 단일 공백)
+    s = re.sub(r'\s*[-–—]\s*', ' ', s)
+    # 3) 중복 공백 제거 + 트림
+    s = re.sub(r'\s{2,}', ' ', s).strip()
+    return s
 
 # ── 유틸: 시트명 안전화 ─────────────────────────────────────────────────────
 def _safe_sheet(name: str, used: set[str]) -> str:
@@ -139,21 +151,20 @@ def _style_with_key(table_key: str, df: pd.DataFrame, fmt: dict | None = None, c
 # ─────────────────────────────────────────────────────────────
 # ✅ Club & Hand 표별 인덱스 / 라벨 열 매핑
 # (label_col을 ""로 두면 첫 열을 라벨로 자동 지정)
-# 필요 시 아래 인덱스는 네 기준에 맞게 자유롭게 수정해!
 # ─────────────────────────────────────────────────────────────
-IDX_BASIC     = [0,1,2,3]         # "클럽헤드/손 운동량과 힘"
-IDX_LEFT      = []         # "왼팔 수평/수직 회전각도"
-IDX_CLUB      = []         # "클럽 수평/수직 회전각도"
-IDX_KNEE_TDD  = []         # "무릎 TDD"
-IDX_KNEE_ROT  = []         # "무릎 수평/수직 회전각도"
-IDX_PELVIS_TDD= []         # "골반 TDD"
-IDX_HIP_ROT   = []         # "골반 수평/수직 회전각도"
-IDX_SHO_TDD   = []         # "어깨 TDD"
-IDX_SHO_ROT   = []         # "어깨 수평/수직 회전각도"
-IDX_PELVIS_C  = [0,1,2,3]         # "골반 회전 중심"
-IDX_SHO_C     = [0,1,2,3]         # "어깨 회전 중심"
-IDX_KNEE_C    = [0,1,2,3]         # "무릎 회전 중심"
-IDX_SUMMARY   = []         # "통합표"
+IDX_BASIC     = [0,1,2,3]
+IDX_LEFT      = []
+IDX_CLUB      = []
+IDX_KNEE_TDD  = []
+IDX_KNEE_ROT  = []
+IDX_PELVIS_TDD= []
+IDX_HIP_ROT   = []
+IDX_SHO_TDD   = []
+IDX_SHO_ROT   = []
+IDX_PELVIS_C  = [0,1,2,3]
+IDX_SHO_C     = [0,1,2,3]
+IDX_KNEE_C    = [0,1,2,3]
+IDX_SUMMARY   = []
 
 CH_TABLE_STYLES: dict[str, tuple[str, list[int]]] = {
     "클럽헤드/손 운동량과 힘": ("", IDX_BASIC),
@@ -178,14 +189,131 @@ CH_TABLE_STYLES: dict[str, tuple[str, list[int]]] = {
 META = {"id": "club_hand", "title": "11. Club & Hand", "icon": "🤝", "order": 41}
 def get_metadata(): return META
 
+# ─────────────────────────────────────────────────────────────
+# ✅ 프로 vs 아마 Top3 (부호 같음 / 부호 다름) by '비율차'
+#    - 비율차 = |P-A| / max(|P|, |A|)
+#    - 세로형(열쌍) + 가로형(프로/일반 행 × 프레임숫자열) 모두 지원
+# ─────────────────────────────────────────────────────────────
+_PAIR_RULES = (("프로","일반"), ("Pro","Ama"))
+
+def _to_num(x):
+    try: return float(x)
+    except Exception: return np.nan
+
+def _ratio_diff(p: float, a: float) -> float:
+    denom = max(abs(p), abs(a))
+    if denom <= 0:
+        return 0.0
+    return abs(p - a) / denom
+
+def _collect_pairs_vertical(df: pd.DataFrame, table_name: str) -> list[dict]:
+    out: list[dict] = []
+    if df is None or df.empty:
+        return out
+
+    headers = list(map(str, df.columns))
+    label_col = df.columns[0] if len(df.columns) else None
+
+    for a, b in _PAIR_RULES:
+        for h in headers:
+            if a in h:
+                h_ama = h.replace(a, b)
+                if h_ama in headers:
+                    pvals = pd.to_numeric(df[h], errors="coerce")
+                    avals = pd.to_numeric(df[h_ama], errors="coerce")
+                    for idx in df.index:
+                        p, av = pvals.loc[idx], avals.loc[idx]
+                        if not (np.isfinite(p) and np.isfinite(av)): continue
+                        ratio = _ratio_diff(p, av)
+                        sign_same = (p * av) >= 0
+                        row_label = str(df.iloc[idx, 0]) if label_col is not None else str(idx)
+                        out.append({
+                            "표": table_name,
+                            "항목/라벨": row_label,
+                            "위치": h,
+                            "Pro": float(p),
+                            "Ama": float(av),
+                            "비율차": float(ratio),
+                            "부호": "같음" if sign_same else "다름",
+                        })
+    return out
+
+def _collect_pairs_horizontal(df: pd.DataFrame, table_name: str) -> list[dict]:
+    out: list[dict] = []
+    if df is None or df.empty:
+        return out
+
+    label_col = next((c for c in ["구분","항목"] if c in df.columns), None)
+    if not label_col:
+        return out
+    frame_cols = [c for c in df.columns if c != label_col and str(c).isdigit()]
+    if not frame_cols:
+        return out
+
+    def _norm_role(x: object) -> str | None:
+        s = "" if x is None else str(x).strip()
+        parts = re.split(r"\s*[·\.\|\-:]\s*", s.replace(" ",""))
+        cand = (parts[-1] if parts else s).lower()
+        if cand.startswith("pro") or cand in ("프로","pro"): return "프로"
+        if cand.startswith("ama") or cand in ("일반","ama"): return "일반"
+        return None
+
+    r_pro = r_ama = None
+    for ridx, v in df[label_col].items():
+        role = _norm_role(v)
+        if role == "프로" and r_pro is None: r_pro = int(ridx)
+        if role == "일반" and r_ama is None: r_ama = int(ridx)
+    if r_pro is None or r_ama is None:
+        return out
+
+    for c in frame_cols:
+        p = _to_num(df.at[r_pro, c])
+        a = _to_num(df.at[r_ama, c])
+        if not (np.isfinite(p) and np.isfinite(a)): continue
+        ratio = _ratio_diff(p, a)
+        sign_same = (p * a) >= 0
+        out.append({
+            "표": table_name,
+            "항목/라벨": str(label_col),
+            "위치": f"프레임 {c}",
+            "Pro": float(p),
+            "Ama": float(a),
+            "비율차": float(ratio),
+            "부호": "같음" if sign_same else "다름",
+        })
+    return out
+
+def top3_split_by_sign_ratio(df: pd.DataFrame, table_name: str) -> tuple[list[dict], list[dict]]:
+    rows = []
+    rows += _collect_pairs_vertical(df, table_name)
+    rows += _collect_pairs_horizontal(df, table_name)
+
+    same = [r for r in rows if r["부호"] == "같음"]
+    opp  = [r for r in rows if r["부호"] == "다름"]
+
+    same.sort(key=lambda r: r["비율차"], reverse=True)
+    opp.sort(key=lambda r: r["비율차"], reverse=True)
+    return same[:3], opp[:3]
+
+# ─────────────────────────────────────────────────────────────
+
 def run(ctx=None):
     st.subheader(f"{META['icon']} {META['title']}")
     if ctx is None:
         st.info("메인앱 컨텍스트가 없습니다.")
         return
 
+    # 🔝 섹션 상단 Top3 박스(좌: 부호 같음 / 우: 부호 다름)
+    top_box = st.container()
+    col_same, col_opp = top_box.columns(2)
+
     pro_arr = ctx.get("pro_arr")
     ama_arr = ctx.get("ama_arr")
+
+    # NEW: 원자료(프로/아마) DataFrame (app.py에서 ctx로 전달됨)
+    gears_pro_df = ctx.get("gears_pro_df")
+    gears_ama_df = ctx.get("gears_ama_df")
+
     if pro_arr is None or ama_arr is None:
         st.warning("무지개(기존) 엑셀 두 개(프로/일반)가 필요합니다.")
         return
@@ -209,10 +337,8 @@ def run(ctx=None):
         ),
         use_container_width=True
     )
-        # ─────────────────────────────────────────────────────────
-    # ✅ 손/클럽 프레임별 가속도 (1번과 2번 사이, 동일 스타일 적용)
-    #    - base numpy 배열 → A,B,C,... 컬럼의 DF로 변환해서 피처 함수 사용
-    # ─────────────────────────────────────────────────────────
+
+    # ✅ 손/클럽 프레임별 가속도
     st.divider()
     st.subheader("손/클럽 프레임별 가속도")
     df_pro_base = _arr_to_letter_df(pro_arr)
@@ -239,6 +365,7 @@ def run(ctx=None):
         use_container_width=True
     )
 
+    # 왼팔/클럽 회전각
     st.divider()
     st.subheader("왼팔 회전각 (Left Arm)")
     df_left = rot.build_left_arm_rotation_table(pro_arr, ama_arr)
@@ -263,6 +390,7 @@ def run(ctx=None):
         use_container_width=True
     )
 
+    # TDD, 회전각(무릎/골반/어깨)
     st.divider()
     st.subheader("무릎 TDD")
     df_knee = tdd.build_knee_tdd_table(pro_arr, ama_arr, rot_to_m=0.01)
@@ -314,6 +442,7 @@ def run(ctx=None):
         use_container_width=True
     )
 
+    # 회전 중심
     st.divider()
     st.markdown("회전 중심")
 
@@ -329,6 +458,7 @@ def run(ctx=None):
     df_k = rc.build_knee_center_table(pro_arr, ama_arr)
     st.dataframe(_style_with_key("무릎 회전 중심", df_k), use_container_width=True)
 
+    # 요약 표
     st.divider()
     st.subheader("회전 중심 구간차")
     df_center = misc.build_rotation_center_diff_all(pro_arr, ama_arr)
@@ -343,7 +473,6 @@ def run(ctx=None):
 
     st.divider()
     st.subheader("회전각 요약 (구간별: 1-4 / 4-7 / 7-10 / 합계)")
-
     df_rot_summary = rot.build_rotation_summary_all(pro_arr, ama_arr, pro_label="Pro", ama_label="Ama")
     st.dataframe(
         df_rot_summary.style.format({
@@ -352,9 +481,9 @@ def run(ctx=None):
         }),
         use_container_width=True
     )
+
     st.divider()
     st.subheader("TDD 요약 (Knee / Pelvis / Shoulder, 구간별)")
-
     df_tdd_summary = tdd.build_tdd_summary_all(pro_arr, ama_arr, rot_to_m=0.01)
     st.dataframe(
         df_tdd_summary.style.format({
@@ -364,33 +493,127 @@ def run(ctx=None):
         }),
         use_container_width=True
     )
-        # (위) 손/클럽 프레임별 가속도 블록까지 동일
-    # (위) 4–7 구간 힘/토크 (요약/프레임별) 출력까지 끝난 지점 바로 아래에 추가
-    st.divider()
-    st.subheader("키네마틱 시퀀스")
-
-    # kseq는 손/클럽 평균가속도(df_accel) + 무릎/골반/어깨 TDD(내부에서 재사용)를 기반으로 표를 만든다
-    df_seq = kseq.build_kinematic_sequence_table(
-        pro_arr, ama_arr, df_accel,
-        pro_name="프로", ama_name="아마", rot_to_m=0.01
-    )
-    st.dataframe(
-        df_seq.style.format({
-            "프로 Back 값": "{:.2f}",
-            "프로 Down 값": "{:.2f}",
-            "아마 Back 값": "{:.2f}",
-            "아마 Down 값": "{:.2f}",
-        }),
-        use_container_width=True
-    )
 
     # ─────────────────────────────────────────────────────────
-    # ✅ 4–7 구간 힘/토크 (요약 & 프레임별) — 가속도 바로 다음
+    # ✅  키네마틱 / 키네틱 시퀀스 (원자료 gears_* 사용, 4×2 표)
+    #     - 백/다운은 한 줄에 2개 컬럼으로 배치
+    # ─────────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("키네마틱 / 키네틱 시퀀스 (원자료 기반)")
+
+    kin_kinetic_tables = {}  # 엑셀 내보내기용으로 모음
+
+    if gears_pro_df is None or gears_ama_df is None:
+        st.info("원자료(gears_raw_preprocessed.csv)를 프로/아마 각각 업로드하면 4×2 표가 표시됩니다.")
+    else:
+        tables_pairwise = kseq.build_kinematic_and_kinetic_tables_gears(
+            gears_pro_df, gears_ama_df,
+            pro_name="프로", ama_name="아마", handedness="right"
+        )
+
+        # 공통 포맷
+        fmt = {"시각(s)": "{:.6f}", "값": "{:.2f}"}
+
+        # ── (교체) 4×2 표 한 줄에 두 개 붙여서 표시 ─────────────────────────
+        def _row(title_left: str, title_right: str):
+            # 간격 좁게
+            c1, c2 = st.columns([1, 1], gap="small")
+            fmt = {"시각(s)": "{:.6f}", "값": "{:.2f}"}
+
+            with c1:
+                st.markdown(f"**{title_left}**")
+                dfL = tables_pairwise[title_left]
+                # 표 자체는 좌측 정렬된 느낌을 주기 위해 여백 최소화 (container 폭은 표 폭에 맞춤)
+                st.dataframe(dfL.style.format(fmt), use_container_width=True)
+                kin_kinetic_tables[title_left] = dfL
+
+            with c2:
+                st.markdown(f"**{title_right}**")
+                dfR = tables_pairwise[title_right]
+                st.dataframe(dfR.style.format(fmt), use_container_width=True)
+                kin_kinetic_tables[title_right] = dfR
+
+
+        # 1행: 키네마틱 - 프로 (Back | Down)
+        _row("키네마틱 - 프로 - Back", "키네마틱 - 프로 - Down")
+        # 2행: 키네마틱 - 아마 (Back | Down)
+        _row("키네마틱 - 아마 - Back", "키네마틱 - 아마 - Down")
+        # 3행: 키네틱 - 프로 (Back | Down)
+        _row("키네틱   - 프로 - Back", "키네틱   - 프로 - Down")
+        # 4행: 키네틱 - 아마 (Back | Down)
+        _row("키네틱   - 아마 - Back", "키네틱   - 아마 - Down")
+
+    # ─────────────────────────────────────────────────────────
+    # 🔝 섹션 상단: “부호 같음 Top3 / 부호 다름 Top3” (비율차 기준) 표시
+    #   - 섹션 전체 표를 대상으로 선별
+    #   - 원하면 포함/제외 조정 가능
+    # ─────────────────────────────────────────────────────────
+    candidate_for_top = {
+        "클럽헤드/손 운동량과 힘": df_basic,
+        "Hand & Club Average Acceleration(구간별 평균가속도)": df_accel,
+        "왼팔 수평/수직 회전각도": df_left,
+        "클럽 수평/수직 회전각도": df_club,
+        "무릎 TDD": df_knee,
+        "무릎 수평/수직 회전각도": df_knee_rot,
+        "골반 TDD": df_pelvis,
+        "골반 수평/수직 회전각도": df_hip_rot,
+        "어깨 TDD": df_shoulder,
+        "어깨 수평/수직 회전각도": df_sho_rot,
+    }
+    # 원자료 기반 표도 포함(있으면)
+    if "키네마틱 - 프로 - Back" in (kin_kinetic_tables or {}):
+        for k, v in kin_kinetic_tables.items():
+            candidate_for_top[k] = v
+
+    same_all: list[dict] = []
+    opp_all:  list[dict] = []
+    for name, df in candidate_for_top.items():
+        try:
+            same3, opp3 = top3_split_by_sign_ratio(df, name)
+            same_all.extend(same3)
+            opp_all.extend(opp3)
+        except Exception:
+            pass
+
+    same_all.sort(key=lambda r: r["비율차"], reverse=True)
+    opp_all.sort(key=lambda r: r["비율차"], reverse=True)
+    same_top3 = same_all[:3]
+    opp_top3  = opp_all[:3]
+
+    # ── 부호 같음 Top3 표시 (비율차/부호 컬럼은 표시 제거)
+    with col_same:
+        st.markdown("### ⚖️ 부호 **같음** – 비율차 Top 3")
+        if not same_top3:
+            st.info("해당 없음")
+        else:
+            df_same = pd.DataFrame(same_top3)[["표","항목/라벨","위치","Pro","Ama"]].copy()
+            df_same["위치"] = df_same["위치"].map(_clean_loc)
+            st.dataframe(
+                df_same.style.format({"Pro":"{:.2f}", "Ama":"{:.2f}"}),
+                use_container_width=True
+            )
+
+    # ── 부호 다름 Top3 표시 (비율차/부호 컬럼은 표시 제거)
+    with col_opp:
+        st.markdown("### 🧲 부호 **다름** – 비율차 Top 3")
+        if not opp_top3:
+            st.info("해당 없음")
+        else:
+            df_opp = pd.DataFrame(opp_top3)[["표","항목/라벨","위치","Pro","Ama"]].copy()
+            df_opp["위치"] = df_opp["위치"].map(_clean_loc)
+            st.dataframe(
+                df_opp.style.format({"Pro":"{:.2f}", "Ama":"{:.2f}"}),
+                use_container_width=True
+            )
+
+
+
+    # ─────────────────────────────────────────────────────────
+    # ✅ 4–7 구간 힘/토크 (요약 & 프레임별)
     # ─────────────────────────────────────────────────────────
     st.divider()
     st.subheader("회전, 수직, 직선력")
 
-    # f47은 base를 A,B,C... 레터 DF로 받으므로 변환
     df_pro_base = _arr_to_letter_df(pro_arr)
     df_ama_base = _arr_to_letter_df(ama_arr)
 
@@ -400,14 +623,12 @@ def run(ctx=None):
         pro_label="Pro", ama_label="Ama",
     )
 
-    # (1) 요약표
     st.markdown("**요약 (평균±표준편차 / 비율)**")
     st.dataframe(
         _style_with_key("4–7 구간 힘/토크 요약", res47.table_summary),
         use_container_width=True
     )
 
-    # (2) 프레임별
     st.markdown("**프레임별 값**")
     st.dataframe(
         _style_with_key(
@@ -423,10 +644,7 @@ def run(ctx=None):
         use_container_width=True
     )
 
-
-
     # ── 단일 시트 엑셀 다운로드 + 마스터 등록 ────────────────────────────────
-    # 섹션 내 모든 표를 dict로 모아 순서대로 한 시트에 쌓아 쓴다
     tables = {
         "클럽헤드/손 운동량과 힘": df_basic,
         "Hand & Club Average Acceleration(구간별 평균가속도)": df_accel,
@@ -444,12 +662,11 @@ def run(ctx=None):
         "통합표":      df_center,
         "회전각 요약(구간별)": df_rot_summary,
         "TDD 요약(구간별)": df_tdd_summary,
-        "키네마틱 시퀀스": df_seq,  
+        **kin_kinetic_tables,  # 원자료 기반 4×2 표도 포함
         "회전, 수직, 직선력 요약": res47.table_summary,
         "회전, 수직, 직선력 (프레임별)": res47.table_perframe,
     }
 
-    # 1) 단일 시트(All) 엑셀 다운로드 버튼
     xbuf = io.BytesIO()
     with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
         _write_section_sheet(writer, sheet_name="All", tables=tables)
@@ -464,7 +681,6 @@ def run(ctx=None):
         key="dl_club_hand_all"
     )
 
-    # 2) 마스터 엑셀 병합용 등록 버튼
     if st.button("➕ 이 섹션을 마스터 엑셀에 추가", use_container_width=True, key="reg_club_hand_master"):
         register_section(META["id"], META["title"], tables)
         st.success("Club & Hand 섹션을 마스터 엑셀에 등록했습니다. (사이드바/메인에서 '모든 섹션 합쳐서 다운로드' 버튼으로 병합 파일을 받을 수 있어요.)")
